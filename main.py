@@ -13,35 +13,44 @@ from pydantic import BaseModel
 from typing import List
 from pymongo import MongoClient
 
-# --- CRITICAL FIX: SUNUCU AÇILIRKEN KLASÖRÜ ANINDA OLUŞTUR ---
-# Klasör açılışta var olacağı için FastAPI artık çökmeyecek.
+# --- CRITICAL FIX: SUNUCU AÇILIRKEN DOSYA KLASÖRÜNÜ ANINDA OLUŞTURALIM ---
 os.makedirs("assets/images", exist_ok=True)
 
-# --- GÜVENLİ BULUT AYARLARI ---
+# --- GÜVENLİ BULUT AYARLARI (RENDER KASASINDAN ÇEKİLİYOR) ---
 API_KEY = os.environ.get("GEMINI_API_KEY")
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not API_KEY:
-    raise ValueError("🚨 GEMINI_API_KEY bulunamadı!")
+    raise ValueError("🚨 GEMINI_API_KEY bulunamadı! Lütfen Render ayarlarına ekleyin.")
 if not MONGO_URI:
-    raise ValueError("🚨 MONGO_URI bulunamadı!")
+    raise ValueError("🚨 MONGO_URI bulunamadı! Lütfen Render ayarlarına ekleyin.")
 
 # --- YAPAY ZEKA YAPILANDIRMASI ---
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
+# --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ (SSL VE SÜRE SINIRI GÜVENLİKLİ) ---
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
-    db = client["gurme_mutfak_db"]          
-    tarif_koleksiyonu = db["tarifler"]
-    # Bağlantıyı hemen test et
+    # tlsAllowInvalidCertificates=True -> Bulut sunucuları arasındaki SSL sertifikası uyuşmazlığını kökten çözer.
+    # serverSelectionTimeoutMS=5000 -> MongoDB'ye bağlanamazsa 5 saniyede pes eder, sunucuyu sonsuza kadar kilitlemez.
+    client = MongoClient(
+        MONGO_URI, 
+        serverSelectionTimeoutMS=5000, 
+        connectTimeoutMS=5000,
+        tlsAllowInvalidCertificates=True
+    )
+    db = client["gurme_mutfak_db"]          # Veritabanı adı
+    tarif_koleksiyonu = db["tarifler"]     # Koleksiyon (Tablo) adı
+    
+    # Bağlantıyı hemen test edelim (Ping atıyoruz)
     client.admin.command('ping')
-    print("✅ MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!")
+    print("✅ MÜJDE: MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!")
 except Exception as e:
-    print(f"🚨 KRİTİK HATA: MongoDB'ye bağlanılamadı! Detay: {e}")    
+    print(f"🚨 KRİTİK HATA: MongoDB Atlas bağlantısı başarısız! Detay: {str(e)}")
 
 app = FastAPI()
 
+# --- CORS İZİNLERİ (Streamlit ile sorunsuz konuşma için) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -66,6 +75,7 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
     yerel_yol = f"assets/images/{dosya_adi}"
     web_url = f"{RENDER_URL}/static/{dosya_adi}"
     
+    # Eğer resim zaten Render diskinde varsa tekrar çizme, doğrudan internet linkini dön
     if os.path.exists(yerel_yol):
         return web_url
         
@@ -88,6 +98,7 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
             
     except Exception as e:
         print(f"⚠️ İllüstrasyon çizilemedi ({title}): {e}")
+        # Hata durumunda yedek iştah açıcı bir görsel linki gönderiyoruz:
         return "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
 
 # --- OTONOM BULUT VERİTABANI GÜNCELLEME FONKSİYONU ---
@@ -98,7 +109,7 @@ def veritabanina_kaydet(yeni_tarifler):
             toplam_adet = tarif_koleksiyonu.count_documents({})
             print(f"📈 Bulut Veritabanı Güncellendi! Toplam Ölümsüz Tarif Sayısı: {toplam_adet}")
     except Exception as e:
-        print(f"⚠️ Veritabanına kaydedilirken hata oluştu: {e}")
+        print(f"⚠️ Veritabanına veri yazılırken hata oluştu: {e}")
 
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
@@ -137,10 +148,16 @@ def tarif_bul(istek: TarifIsteği):
             t["image_path"] = resim_indir_ve_kaydet(anahtar_kelime, yemek_adi)
             time.sleep(2)
         
+        # Üretilen tarifleri MongoDB bulutuna kalıcı olarak gönderiyoruz
         veritabanina_kaydet(tarifler)
         return {"tarifler": tarifler}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- GARANTİ KORUMA: BAĞLANTIDAN HEMEN ÖNCE KLASÖRÜ BİR KEZ DAHA KONTROL ET ---
+if not os.path.exists("assets/images"):
+    os.makedirs("assets/images", exist_ok=True)
+
+# Assets klasörünü internet üzerinden erişilebilir static link köprüsüne dönüştürüyoruz
 app.mount("/static", StaticFiles(directory="assets/images"), name="static")

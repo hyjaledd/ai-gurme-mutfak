@@ -13,9 +13,9 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not API_KEY or not MONGO_URI:
-    raise ValueError("🚨 API_KEY veya MONGO_URI eksik!")
+    raise ValueError("🚨 API_KEY veya MONGO_URI eksik! Lütfen Render panelinden kontrol edin.")
 
-# --- YENİ NESİL GEMINI İSTEMCİSİ ---
+# --- YENİ NESİL GEMINI İSTEMCİSİ (GOOGLE-GENAI SÜRÜMÜ) ---
 ai_client = genai.Client(api_key=API_KEY)
 
 # --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
@@ -29,7 +29,7 @@ try:
     db = client["gurme_mutfak_db"]          
     tarif_koleksiyonu = db["tarifler"]     
     client.admin.command('ping')
-    print("✅ MongoDB Atlas Bağlantısı Başarılı!")
+    print("✅ MÜJDE: MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!")
 except Exception as e:
     print(f"🚨 MongoDB Bağlantı Hatası: {str(e)}")
 
@@ -53,10 +53,9 @@ class TarifIsteği(BaseModel):
 def veritabanina_kaydet(yeni_tarifler):
     try:
         if yeni_tarifler:
-            # MongoDB'ye ham listeyi doğrudan gönderiyoruz
             tarif_koleksiyonu.insert_many(yeni_tarifler)
             toplam_adet = tarif_koleksiyonu.count_documents({})
-            print(f"📈 Veritabanına başarıyla yazıldı. Toplam Tarif Sayısı: {toplam_adet}")
+            print(f"📈 Bulut Veritabanı Güncellendi! Toplam Tarif Sayısı: {toplam_adet}")
     except Exception as e:
         print(f"⚠️ Veritabanı kayıt hatası: {e}")
 
@@ -75,12 +74,11 @@ def tarif_bul(istek: TarifIsteği):
     ⚠️ Kesinlikle bu isimlerden farklı 3 yemek üretmelisin: [{yasakli_metin}]
     
     GÖREVİN: Öğüne uygun TAM 3 FARKLI TARİF üret. 
-    Her tarif objesinin içinde mutlaka 'title', 'ingredients', 'instructions', 'calories' ve 'visual_keyword' alanları olsun.
-    YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra açıklama veya markdown kesmesi ekleme.
+    Her tarif objesinin içinde mutlaka 'title', 'ingredients', 'instructions', 'calories' ve 'visual_keyword' alanları eksiksiz yer almalıdır.
+    YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra hiçbir metin veya markdown işareti ekleme.
     """
 
     try:
-        # Gemini modelinden saf JSON çıktısı alıyoruz
         response = ai_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -92,11 +90,10 @@ def tarif_bul(istek: TarifIsteği):
         raw_text = response.text
         tarifler = json.loads(raw_text)
         
-        # Her tarife Streamlit'te patlama yaşanmaması için sabit bir yedek görsel linki iliştiriyoruz
+        # Streamlit arayüzünde tasarımın kırılmaması için sabit bir arka plan iştah açıcı görsel linki ekliyoruz
         for t in tarifler:
             t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
         
-        # Veritabanına kaydet ve Streamlit'e fırlat
         veritabanina_kaydet(tarifler)
         return {"tarifler": tarifler}
 

@@ -57,7 +57,6 @@ def veritabanina_kaydet(yeni_tarifler):
             kaydedilen_isimler = [t.get("title", "İsimsiz") for t in yeni_tarifler]
             tarif_koleksiyonu.insert_many(yeni_tarifler)
             toplam_adet = tarif_koleksiyonu.count_documents({})
-            # KESİN LOG: Hangi tariflerin kaydedildiğini anında Render'a basar
             print(f"💾 [DB-KAYIT] {len(yeni_tarifler)} yeni tarif BAŞARIYLA KAYDEDİLDİ! Eklenenler: {kaydedilen_isimler} | Arşivdeki Toplam Tarif: {toplam_adet}", flush=True)
     except Exception as e:
         print(f"⚠️ [DB-HATA] Veritabanı kayıt hatası: {e}", flush=True)
@@ -71,7 +70,7 @@ def tarif_bul(istek: TarifIsteği):
     kalori_hedefi = istek.kalori_hedefi if istek.kalori_hedefi else "Fark Etmez"
     gosterilen_tender = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
 
-    print(f"🔍 [SİSTEM] {ogun} öğünü için istek geldi. Önce veritabanı (Arşiv) kontrol ediliyor...", flush=True)
+    print(f"🔍 [SİSTEM] {ogun} öğünü için istek geldi. Önce veritabanı kontrol ediliyor...", flush=True)
     
     db_query = {
         "ogun": ogun,
@@ -95,18 +94,17 @@ def tarif_bul(istek: TarifIsteği):
             if "_id" in recipe:
                 recipe["_id"] = str(recipe["_id"]) 
             matching_recipes.append(recipe)
-            if len(matching_recipes) >= 3:
+            # Hem ana tarifler hem de bonus tatlı veritabanında tek bir pakette olabileceği için kontrolü esnetiyoruz
+            if len(matching_recipes) >= 4:
                 break
 
-    # KURAL: Veritabanında varsa doğrudan oradan oku
-    if len(matching_recipes) >= 3:
+    # KURAL: Eğer arşivde en az 3 ana + 1 tatlı (toplam 4) tarif paketi varsa direkt veritabanından oku
+    if len(matching_recipes) >= 4:
         okunan_isimler = [r.get("title", "İsimsiz") for r in matching_recipes]
-        # KESİN LOG: Hangi tariflerin DB'den çekildiğini anında Render'a basar
-        print(f"📦 [DB-OKUMA] Arşivde uygun tarifler BULUNDU! API çağrılmadan doğrudan veritabanından çekilenler: {okunan_isimler}", flush=True)
+        print(f"📦 [DB-OKUMA] Arşivden çekilen eksiksiz menü protokolü: {okunan_isimler}", flush=True)
         return {"tarifler": matching_recipes}
 
-    # KURAL DEVRİ: Veritabanında yoksa Gemini'yi çağır
-    print("🍳 [SİSTEM] Veritabanında yeterli tarif yok. Gemini 2.5 Pro yeni reçeteler üretiyor...", flush=True)
+    print("🍳 [SİSTEM] Arşivde yeterli kombinasyon yok. Gemini 2.5 Pro imza menüyü tasarlıyor...", flush=True)
     
     yasakli_listesi = gosterilen_tender + [r["title"] for r in matching_recipes]
     yasakli_metin = ", ".join(yasakli_listesi) if yasakli_listesi else "Yok"
@@ -118,10 +116,13 @@ def tarif_bul(istek: TarifIsteği):
     Porsiyon: Tam olarak {kisi_sayisi} Kişilik
     Müşterinin Kişi Başı Kalori Hedefi: {kalori_hedefi}
     
-    ⚠️ Kesinlikle bu isimlerden farklı 3 yemek üretmelisin: [{yasakli_metin}]
+    ⚠️ Kesinlikle bu isimlerden farklı yemekler üretmelisin: [{yasakli_metin}]
     
-    GÖREVİN: Öğüne uygun TAM 3 FARKLI TARİF üret. 
-    Her tarif objesinin içinde mutlaka 'title', 'ingredients', 'instructions', 'calories' ve 'visual_keyword' alanları eksiksiz yer almalıdır.
+    GÖREVİN: 
+    1. Seçilen öğüne uygun TAM 3 FARKLI ANA REÇETE üret (is_bonus alanını false yap).
+    2. Bu menünün sonuna, eldeki malzemelerle yapılabilecek TAM 1 ADET 'Bonus Tatlı' tarifi ekle (is_bonus alanını true yap). Eğer seçilen ana öğün zaten tatlı ise, bu bonus tatlı aşırı sıra dışı bir gurme şef spesiyali olsun.
+    
+    Her tarif objesinin içinde mutlaka 'title', 'ingredients', 'instructions', 'calories', 'visual_keyword' ve 'is_bonus' (True/False) alanları eksiksiz yer almalıdır.
     YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra hiçbir metin veya markdown işareti ekleme.
     """
 
@@ -144,8 +145,14 @@ def tarif_bul(istek: TarifIsteği):
             for t in tarifler:
                 t["ogun"] = ogun
                 t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
+                # Eğer model is_bonus anahtarını unutursa varsayılan olarak False atayalım (Sonuncuyu True yapma emniyeti)
+                if "is_bonus" not in t:
+                    t["is_bonus"] = False
             
-            # Yeni tarifler üretildiğinde DB'ye kaydet (Buradaki fonsiyon KESİN LOG basacak)
+            # Küçük bir güvenlik emniyeti: Eğer model etiketlemeyi unuttuysa 4. tarifi otomatik bonus yap
+            if len(tarifler) >= 4 and not any(x.get("is_bonus") for x in tarifler):
+                tarifler[-1]["is_bonus"] = True
+            
             veritabanina_kaydet(tarifler)
             
             for t in tarifler:
@@ -161,4 +168,4 @@ def tarif_bul(istek: TarifIsteği):
                 bekleme_suresi += 3 
             else:
                 print(f"🚨 [HATA] TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}", flush=True)
-                raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı veya Bulunamadı: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı: {str(e)}")

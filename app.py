@@ -115,7 +115,7 @@ def menü_talep_et():
         "kalori_hedefi": kalori_hedefi,
         "gosterilen_tarifler": st.session_state.gosterilen_tarifler
     }
-    response = requests.post("74.220.51.0/24", json=payload)
+    response = requests.post("https://ai-gurme-mutfak.onrender.com", json=payload)
     if response.status_code == 200:
         st.session_state.aktif_menü = response.json()["tarifler"]
         for t in st.session_state.aktif_menü:

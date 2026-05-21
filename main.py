@@ -11,26 +11,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
-from pymongo import MongoClient # YENİ: MongoDB Bağlantı kütüphanesi
+from pymongo import MongoClient
 
-# --- GÜVENLİ BULUT AYARLARI (RENDER KASASINDAN ÇEKİLİYOR) ---
+# --- CRITICAL FIX: SUNUCU AÇILIRKEN KLASÖRÜ ANINDA OLUŞTUR ---
+# Klasör açılışta var olacağı için FastAPI artık çökmeyecek.
+os.makedirs("assets/images", exist_ok=True)
+
+# --- GÜVENLİ BULUT AYARLARI ---
 API_KEY = os.environ.get("GEMINI_API_KEY")
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not API_KEY:
     raise ValueError("🚨 GEMINI_API_KEY bulunamadı!")
 if not MONGO_URI:
-    raise ValueError("🚨 MONGO_URI bulunamadı! Lütfen Render Environment ayarlarına ekleyin.")
+    raise ValueError("🚨 MONGO_URI bulunamadı!")
 
 # --- YAPAY ZEKA YAPILANDIRMASI ---
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
-# Bu satır, Render ile Almanya'daki MongoDB Atlas arasında 7/24 açık bir tünel kurar.
-client = MongoClient(MONGO_URI)
-db = client["gurme_mutfak_db"]          # Veritabanı adı
-tarif_koleksiyonu = db["tarifler"]     # Tablo (Koleksiyon) adı
+# --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ (TIMEOUT KORUMALI) ---
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+db = client["gurme_mutfak_db"]          
+tarif_koleksiyonu = db["tarifler"]     
 
 app = FastAPI()
 
@@ -53,8 +56,6 @@ class TarifIsteği(BaseModel):
 
 # --- AI RESSAM MOTORU ---
 def resim_indir_ve_kaydet(keyword: str, title: str):
-    os.makedirs("assets/images", exist_ok=True)
-    
     isim_hash = hashlib.md5(title.encode('utf-8')).hexdigest()
     dosya_adi = f"tarif_{isim_hash}.jpg"
     yerel_yol = f"assets/images/{dosya_adi}"
@@ -87,8 +88,6 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
 # --- OTONOM BULUT VERİTABANI GÜNCELLEME FONKSİYONU ---
 def veritabanina_kaydet(yeni_tarifler):
     try:
-        # Eski JSON dosyası mantığı tamamen silindi.
-        # Yeni tarifleri tek hamlede buluttaki MongoDB Atlas kasamıza fırlatıyoruz.
         if yeni_tarifler:
             tarif_koleksiyonu.insert_many(yeni_tarifler)
             toplam_adet = tarif_koleksiyonu.count_documents({})

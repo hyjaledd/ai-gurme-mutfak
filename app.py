@@ -36,13 +36,7 @@ with st.container():
         kalori_hedefi = st.selectbox("🔥 Kalori (Kişi Başı)", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
 
     populer_malzemeler = ["Süt", "Beyaz Peynir", "Kaşar Peyniri", "Yumurta", "Tereyağı", "Zeytinyağı", "Un", "Tuz", "Karabiber", "Pul Biber", "Domates", "Biber", "Salça", "Kuru Soğan", "Sarımsak", "Patates", "Yoğurt", "Tavuk", "Kıyma"]
-    
-    # --- CRITICAL FIX: DEFAULT BOŞ LİSTE OLARAK AYARLANDI ---
-    malzemeler_listesi = st.multiselect(
-        "🛒 Envanteriniz", 
-        options=populer_malzemeler, 
-        default=[] # Artık ilk açılışta hiçbir malzeme seçili gelmeyecek, tamamen boş olacak.
-    )
+    malzemeler_listesi = st.multiselect("🛒 Envanteriniz", options=populer_malzemeler, default=[])
 
     if st.button("✨ GURME REÇETELERİ OLUŞTUR", type="primary", use_container_width=True):
         if not malzemeler_listesi:
@@ -79,13 +73,33 @@ if st.session_state.mevcut_tarifler:
         with st.expander(expander_label, expanded=False):
             m_col1, m_col2 = st.columns(2)
             with m_col1:
-                st.metric(label="🔥 Kalori (Kişi Başı)", value=tarif.get('calories', 'N/A'), help="Hesaplanan değer tek bir porsiyon için geçerli olan enerji miktarıdır.")
+                st.metric(label="🔥 Kalori (Kişi Başı)", value=tarif.get('calories', 'N/A'))
             with m_col2:
-                st.metric(label="👥 Hedef Porsiyon", value=f"{kisi_sayisi} Kişilik", help="Bu tarifteki malzeme miktarları seçtiğiniz kişi sayısına göre ölçeklendirilmiştir.")
+                st.metric(label="👥 Hedef Porsiyon", value=f"{kisi_sayisi} Kişilik")
             
+            # --- MALZEME TİPİNİ AKILLICA TEMİZLEYEN GÜVENLİK KALKANI ---
             st.markdown("##### 🛒 Gerekli Malzemeler")
-            st.info(", ".join(tarif.get("ingredients", [])))
+            malzemeler_ham = tarif.get("ingredients", [])
             
+            if isinstance(malzemeler_ham, list):
+                # Liste içindeki elemanlar sözlük mü yoksa düz yazı mı kontrol et
+                temiz_malzemeler = []
+                for m in malzemeler_ham:
+                    if isinstance(m, dict):
+                        # Eğer sözlükse isim ve miktar bilgisini birleştir (Örn: "Tavuk: 200g")
+                        isim = m.get("name", m.get("item", str(m)))
+                        miktar = m.get("amount", m.get("quantity", ""))
+                        temiz_malzemeler.append(f"{isim} ({miktar})" if miktar else isim)
+                    else:
+                        temiz_malzemeler.append(str(m))
+                st.info(", ".join(temiz_malzemeler))
+            elif isinstance(malzemeler_ham, dict):
+                temiz_malzemeler = [f"{k}: {v}" for k, v in malzemeler_ham.items()]
+                st.info(", ".join(temiz_malzemeler))
+            else:
+                st.info(str(malzemeler_ham))
+            
+            # Hazırlanış Protokolü
             st.markdown("##### 👨‍🍳 Hazırlanış Protokolü")
             if isinstance(adımlar_ham, list):
                 for adim in adımlar_ham:
@@ -97,6 +111,3 @@ if st.session_state.mevcut_tarifler:
                 st.write(str(adımlar_ham))
             
             st.markdown("<p style='text-align: right; color: #8b8ba7; font-size: 0.8rem;'>AI Gourmet Kitchen © 2026</p>", unsafe_allow_html=True)
-
-    st.write("")
-    st.info("💡 Beğenmediğiniz tarifler varsa tekrar butonuna basarak yeni bir menü protokolü oluşturabilirsiniz.")

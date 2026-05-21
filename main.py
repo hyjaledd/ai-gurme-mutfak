@@ -3,7 +3,7 @@ import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from pymongo import MongoClient
 from google import genai
 from google.genai import types
@@ -43,12 +43,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- 422 HATALARINI ÖNLEYEN ESNEK VERİ MODELİ ---
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
     ogun: str
-    kisi_sayisi: int
-    kalori_hedefi: str
-    gosterilen_tarifler: List[str]
+    kisi_sayisi: Optional[int] = 2          # Değer gelmezse veya hatalı gelirse varsayılan olarak 2 al
+    kalori_hedefi: Optional[str] = "Fark Etmez" # Eksik gelirse hata verme, Fark Etmez kabul et
+    gosterilen_tarifler: Optional[List[str]] = [] # Boş veya eksik gelirse boş liste tanımla
 
 def veritabanina_kaydet(yeni_tarifler):
     try:
@@ -61,15 +62,22 @@ def veritabanina_kaydet(yeni_tarifler):
 
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
-    print(f"🤖 AI Şef Tetiklendi: {istek.ogun} öğünü için tarif hazırlanıyor...")
-    yasakli_metin = ", ".join(istek.gosterilen_tarifler) if istek.gosterilen_tarifler else "Yok"
+    # Veriler null veya eksik gelirse çökme yaşanmaması için fonksiyon içi ekstra koruma kalkanı
+    malzemeler = istek.malzemeler if istek.malzemeler else []
+    ogun = istek.ogun if istek.ogun else "Kahvaltı"
+    kisi_sayisi = istek.kisi_sayisi if istek.kisi_sayisi else 2
+    kalori_hedefi = istek.kalori_hedefi if istek.kalori_hedefi else "Fark Etmez"
+    gosterilenler = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
+
+    print(f"🤖 AI Şef Tetiklendi: {ogun} öğünü için tarif hazırlanıyor... (Porsiyon: {kisi_sayisi})")
+    yasakli_metin = ", ".join(gosterilenler) if gosterilenler else "Yok"
     
     prompt = f"""
     Sen profesyonel bir yapay zeka şefi ve diyetisyensin.
-    Müşterinin Dolabındaki Malzemeler: {', '.join(istek.malzemeler)}
-    İstediği Öğün Tipi: {istek.ogun}
-    Porsiyon: Tam olarak {istek.kisi_sayisi} Kişilik
-    Müşterinin Kişi Başı Kalori Hedefi: {istek.kalori_hedefi}
+    Müşterinin Dolabındaki Malzemeler: {', '.join(malzemeler)}
+    İstediği Öğün Tipi: {ogun}
+    Porsiyon: Tam olarak {kisi_sayisi} Kişilik
+    Müşterinin Kişi Başı Kalori Hedefi: {kalori_hedefi}
     
     ⚠️ Kesinlikle bu isimlerden farklı 3 yemek üretmelisin: [{yasakli_metin}]
     

@@ -78,7 +78,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- BACKEND BAĞLANTI ADRESİ ---
-BACKEND_URL = "[https://ai-gurme-mutfak.onrender.com](https://ai-gurme-mutfak.onrender.com)"
+# Hata yaratan kısımlar temizlendi, sadece saf URL bırakıldı:
+BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
 
 # --- LÜKS HEADER TASARIMI ---
 st.markdown("""

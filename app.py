@@ -1,96 +1,52 @@
-import streamlit as st
-import requests
-
-st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🍳", layout="wide")
-
-# --- BACKEND BAĞLANTI ADRESİ ---
-BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
-
-# Sayfa Başlığı ve Tasarımı
-st.title("🧑‍🍳 AI Gourmet Kitchen")
-st.markdown("##### Profesyonel yapay zeka şefiyle mutfağınızda bir sanat eseri yaratın.")
-st.write("---")
-
-# Hafıza Yönetimi (Session State)
-if "gosterilen_tarifler" not in st.session_state:
-    st.session_state.gosterilen_tarifler = []
-if "mevcut_tarifler" not in st.session_state:
-    st.session_state.mevcut_tarifler = None
-
-# Giriş Bölümü: Öğün, Porsiyon ve Kalori Seçimi (Yan Yana Üç Kolon)
-col_ogun, col_porsiyon, col_kalori = st.columns(3)
-
-with col_ogun:
-    ogun = st.selectbox("⏱️ Öğün Seçimi", ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği", "Aperatif", "Tatlı"])
-
-with col_porsiyon:
-    kisi_sayisi = st.number_input("👥 Porsiyon", min_value=1, max_value=20, value=2, step=1)
-
-with col_kalori:
-    kalori_hedefi = st.selectbox("🔥 Kalori Hedefi", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
-
-st.write("")
-
-# --- ESKİ SEÇMELİ MALZEME LİSTESİ (GERİ GELDİ) ---
-populer_malzemeler = [
-    "Süt", "Beyaz Peynir", "Kaşar Peyniri", "Yumurta", "Tereyağı", "Ayçiçek Yağı", 
-    "Zeytinyağı", "Un", "Toz Şeker", "Tuz", "Karabiber", "Pul Biber", "Kekik", 
-    "Kimyon", "İsot", "Nane", "Domates", "Biber", "Salça", "Kuru Soğan", 
-    "Sarımsak", "Patates", "Kapya Biber", "Maydanoz", "Yoğurt", "Tavuk", "Kıyma"
-]
-
-malzemeler_listesi = st.multiselect(
-    "🛒 Dolabınızdaki Malzemeleri Yönetin", 
-    options=populer_malzemeler,
-    default=["Yumurta", "Domates", "Biber", "Kaşar Peyniri"] # İlk açılışta seçili gelecekler
-)
-
-st.write("")
-
-# Menü Hazırlama Butonu
-if st.button("✨ GURME MENÜMÜ HAZIRLA", type="primary", use_container_width=True):
-    if not malzemeler_listesi:
-        st.error("🚨 Lütfen dolabınızdan en az bir malzeme seçin!")
-    else:
-        with st.spinner("🍳 Şefimiz mutfakta malzemeleri analiz ediyor..."):
-            payload = {
-                "malzemeler": malzemeler_listesi,
-                "ogun": ogun,
-                "kisi_sayisi": int(kisi_sayisi),
-                "kalori_hedefi": kalori_hedefi,
-                "gosterilen_tarifler": st.session_state.gosterilen_tarifler
-            }
-            
-            try:
-                response = requests.post(f"{BACKEND_URL}/tarif-bul", json=payload, timeout=60)
-                if response.status_code == 200:
-                    st.session_state.mevcut_tarifler = response.json().get("tarifler", [])
-                    # Beğenilmeyen geçmiş havuzuna ekle ki bir sonraki basışta farklı yemek gelsin
-                    for t in st.session_state.mevcut_tarifler:
-                        if t["title"] not in st.session_state.gosterilen_tarifler:
-                            st.session_state.gosterilen_tarifler.append(t["title"])
-                else:
-                    st.error(f"Backend sunucusundan hata döndü (Kod: {response.status_code}): {response.text}")
-            except Exception as e:
-                st.error(f"Render backend sunucusuna ulaşılamadı. Sunucu uyanıyor olabilir, lütfen 10 saniye sonra tekrar deneyin. Hata: {e}")
-
-st.write("")
-
-# Tarif Kartlarını Grid (3 Kolon) Şeklinde Ekrana Basma
+# --- ESKİ GÜZEL GÖRÜNÜMÜ GERİ GETİREN AKILLI GÖRSEL MOTORU ---
 if st.session_state.mevcut_tarifler:
-    st.success("🤖 AI Şefinizin Sizin İçin Seçtiği Özel Menü:")
+    st.write("---")
+    st.success("🧑‍🍳 AI Şefinizin Sizin İçin Tasarladığı Gurme Menü:")
+    
     cols = st.columns(3)
     
+    # Yemek türlerine göre harika, yüksek çözünürlüklü profesyonel fotoğraf havuzu
+    gorsel_havuzu = {
+        "yumurta": "https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=600&auto=format&fit=crop",
+        "omlet": "https://images.unsplash.com/photo-1494597564530-871f2b93ac55?q=80&w=600&auto=format&fit=crop",
+        "menemen": "https://images.unsplash.com/photo-1590412200988-a436bb705300?q=80&w=600&auto=format&fit=crop",
+        "kahvalti": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=600&auto=format&fit=crop",
+        "tavuk": "https://images.unsplash.com/photo-1604503468506-a8da13d82791?q=80&w=600&auto=format&fit=crop",
+        "et": "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=600&auto=format&fit=crop",
+        "kofte": "https://images.unsplash.com/photo-1529042410759-befb1204b468?q=80&w=600&auto=format&fit=crop",
+        "makarna": "https://images.unsplash.com/photo-1563379971899-660589a01cc3?q=80&w=600&auto=format&fit=crop",
+        "salata": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=600&auto=format&fit=crop",
+        "corba": "https://images.unsplash.com/photo-1547592165-e1d17fed6005?q=80&w=600&auto=format&fit=crop",
+        "tatli": "https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=600&auto=format&fit=crop",
+        "krep": "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?q=80&w=600&auto=format&fit=crop",
+        "patates": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?q=80&w=600&auto=format&fit=crop",
+        "sandvic": "https://images.unsplash.com/photo-1509722747041-616f39b57569?q=80&w=600&auto=format&fit=crop",
+        "borek": "https://images.unsplash.com/photo-1608039755401-742074f0548d?q=80&w=600&auto=format&fit=crop"
+    }
+
     for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
         with cols[idx % 3]:
-            # Arka planda kırılma olmasın diye sabit gelen iştah açıcı görseli basıyoruz
-            st.image(tarif.get("image_path"), use_container_width=True)
-            st.subheader(tarif.get("title", "Gurme Lezzet"))
-            st.markdown(f"🔥 **Kalori:** {tarif.get('calories', 'Belirtilmedi')}")
+            # Akıllı Eşleştirme: Yemek başlığına bakıp en uygun görseli seçer
+            baslik_canli = tarif.get("title", "").lower()
+            secilen_gorsel = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=600&auto=format&fit=crop" # Genel yemek görseli (yedek)
             
-            st.write("**🛒 Malzemeler:**")
+            for anahtar, link in gorsel_havuzu.items():
+                if anahtar in baslik_canli:
+                    secilen_gorsel = link
+                    break
+            
+            # Şık Kart Tasarımı
+            st.image(secilen_gorsel, use_container_width=True, caption=tarif.get("title"))
+            
+            # Başlık ve Kalori Alanı (Görsel olarak belirginleştirildi)
+            st.markdown(f"### 🍽️ {tarif.get('title', 'Gurme Lezzeti')}")
+            st.markdown(f"🔥 **Enerji Değeri:** `{tarif.get('calories', 'Belirtilmedi')}`")
+            
+            # İçindekiler Alanı
+            st.markdown("##### 🛒 İçindekiler")
             st.caption(", ".join(tarif.get("ingredients", [])))
             
-            st.write("**👨‍🍳 Hazırlanışı:**")
-            st.write(tarif.get("instructions", "Tarif adımları yüklenemedi."))
+            # Hazırlanışı Alanı (Okunabilirliği artırmak için expander içine aldık)
+            with st.expander("👨‍🍳 Hazırlanışı ve Adımları Gör", expanded=True):
+                st.write(tarif.get("instructions", "Tarif adımları yüklenemedi."))
             st.write("---")

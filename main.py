@@ -30,10 +30,15 @@ if not MONGO_URI:
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ (TIMEOUT KORUMALI) ---
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-db = client["gurme_mutfak_db"]          
-tarif_koleksiyonu = db["tarifler"]     
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
+    db = client["gurme_mutfak_db"]          
+    tarif_koleksiyonu = db["tarifler"]
+    # Bağlantıyı hemen test et
+    client.admin.command('ping')
+    print("✅ MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!")
+except Exception as e:
+    print(f"🚨 KRİTİK HATA: MongoDB'ye bağlanılamadı! Detay: {e}")    
 
 app = FastAPI()
 

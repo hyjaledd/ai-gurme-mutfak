@@ -14,9 +14,9 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not API_KEY or not MONGO_URI:
-    raise ValueError("🚨 API_KEY veya MONGO_URI eksik!")
+    raise ValueError("🚨 API_KEY veya MONGO_URI eksik! Lütfen Render panelinden kontrol edin.")
 
-# --- YENİ NESİL GEMINI İSTEMCİSİ ---
+# --- YENİ NESİL GEMINI İSTEMCİSİ (GOOGLE-GENAI SÜRÜMÜ) ---
 ai_client = genai.Client(api_key=API_KEY)
 
 # --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
@@ -44,6 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- 422 HATALARINI ÖNLEYEN ESNEK VERİ MODELİ ---
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
     ogun: str
@@ -60,16 +61,17 @@ def veritabanina_kaydet(yeni_tarifler):
     except Exception as e:
         print(f"⚠️ Veritabanı kayıt hatası: {e}")
 
+# --- EN KARARLI RETRY MOTORUNA SAHİP TARİF BULMA ROUTE'U ---
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
     malzemeler = istek.malzemeler if istek.malzemeler else []
     ogun = istek.ogun if istek.ogun else "Kahvaltı"
     kisi_sayisi = istek.kisi_sayisi if istek.kisi_sayisi else 2
     kalori_hedefi = istek.kalori_hedefi if istek.kalori_hedefi else "Fark Etmez"
-    gosterilenler = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
+    gosterilen_tender = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
 
     print(f"🤖 AI Şef Tetiklendi: {ogun} öğünü için tarif hazırlanıyor...")
-    yasakli_metin = ", ".join(gosterilenler) if gosterilenler else "Yok"
+    yasakli_metin = ", ".join(gosterilen_tender) if gosterilen_tender else "Yok"
     
     prompt = f"""
     Sen profesyonel bir yapay zeka şefi ve diyetisyensin.
@@ -85,14 +87,14 @@ def tarif_bul(istek: TarifIsteği):
     YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra hiçbir metin veya markdown işareti ekleme.
     """
 
-    # --- GOOGLE 503 HATASI İÇİN AKILLI RETRY (YENİDEN DENEME) MOTORU ---
-    max_deneme = 3
-    bekleme_suresi = 2 # Saniye cinsinden
+    # --- DAHA GÜÇLÜ RETRY VE KARARLI MODEL MOTORU ---
+    max_deneme = 5  # Deneme sayısını 5'e çıkardık
+    bekleme_suresi = 3 # İlk bekleme 3 saniye
     
     for deneme in range(max_deneme):
         try:
             response = ai_client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-1.5-flash', # En stabil, yoğunluktan en az etkilenen modele geçtik
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json"
@@ -105,22 +107,21 @@ def tarif_bul(istek: TarifIsteği):
             for t in tarifler:
                 t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
             
+            # Veritabanına kaydet (MongoDB _id'leri ekleyecek)
             veritabanina_kaydet(tarifler)
             
+            # ObjectId tip uyuşmazlığını düz metne çevirme kalkanı
             for t in tarifler:
                 if "_id" in t:
                     t["_id"] = str(t["_id"])
             
-            # Eğer başarılı olduysa döngüden çık ve veriyi gönder
             return {"tarifler": tarifler}
 
         except Exception as e:
-            # Eğer hata Google 503 veya başka bir şeyse ve hâlâ deneme hakkımız varsa bekle ve tekrar et
             if deneme < max_deneme - 1:
-                print(f"⚠️ Google API meşgul (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor... Hata: {str(e)}")
+                print(f"⚠️ Google API meşgul (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor...")
                 time.sleep(bekleme_suresi)
-                bekleme_suresi *= 2 # Üstel bekleme (Önce 2sn, sonra 4sn bekleyecek)
+                bekleme_suresi += 3 # Doğrusal artış: 3sn, 6sn, 9sn, 12sn bekleyecek (Toplamda 30 saniyelik bir direnç penceresi)
             else:
-                # Tüm denemeler bittiyse ve hâlâ patlıyorsa son çare olarak hatayı fırlat
                 print(f"🚨 TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Google API Yoğunluk Sınırı Aşıldı: {str(e)}")

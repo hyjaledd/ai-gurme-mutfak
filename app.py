@@ -1,16 +1,17 @@
 import streamlit as st
 import requests
 
+# Mobil uyumluluk için geniş yerleşimi koruyoruz ancak alt bileşenleri esnetiyoruz
 st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🧑‍🍳", layout="wide")
 
 # --- BACKEND BAĞLANTI ADRESİ ---
 BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
 
-# --- PREMIUM HEADER TASARIMI ---
+# --- MOBİL UYUMLU PREMIUM HEADER ---
 st.markdown("""
-    <div style="background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #2d2d44;">
-        <h1 style="color: #ffffff; margin-bottom: 0.5rem; font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.5px;">🧑‍🍳 AI Gourmet Kitchen</h1>
-        <p style="color: #8b8ba7; font-size: 1.1rem; margin-bottom: 0;">Profesyonel Yapay Zeka Şefi • Akıllı Kalori ve Menü Yönetim Paneli</p>
+    <div style="background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid #2d2d44;">
+        <h1 style="color: #ffffff; margin-bottom: 0.4rem; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px; text-align: center;">🧑‍🍳 AI Gourmet Kitchen</h1>
+        <p style="color: #8b8ba7; font-size: 0.95rem; margin-bottom: 0; text-align: center;">Profesyonel Şef ve Diyetisyen Reçete Yönetim Paneli</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -20,19 +21,33 @@ if "gosterilen_tarifler" not in st.session_state:
 if "mevcut_tarifler" not in st.session_state:
     st.session_state.mevcut_tarifler = None
 
-# --- KONTROL PANELİ ---
+# --- KONTROL PANELİ (MOBİL İÇİN DİKEY HİZALANABİLİR DÜZEN) ---
 with st.container():
-    st.markdown("#### ⚙️ Menü Yapılandırma")
-    col_ogun, col_porsiyon, col_kalori = st.columns(3)
+    st.markdown("#### ⚙️ Menü Konfigürasyonu")
+    
+    # Küçük ekranlarda (Mobilde) alt alta, büyük ekranlarda yan yana otomatik esneyen kolonlar
+    col_ogun, col_porsiyon, col_kalori = st.columns([1, 1, 1])
 
     with col_ogun:
-        ogun = st.selectbox("⏱️ Hedef Öğün", ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği", "Aperatif", "Tatlı"])
+        ogun = st.selectbox(
+            "⏱️ Hedef Öğün Tipi", 
+            ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği", "Aperatif", "Tatlı"],
+            help="Yayap zeka şefinin mutfak protokolünü ve malzeme ağırlıklarını optimize edeceği öğün türü."
+        )
 
     with col_porsiyon:
-        kisi_sayisi = st.number_input("👥 Porsiyon Sayısı", min_value=1, max_value=20, value=2, step=1)
+        kisi_sayisi = st.number_input(
+            "👥 Toplam Porsiyon", 
+            min_value=1, max_value=20, value=2, step=1,
+            help="Malzeme miktarları ve veritabanı kayıtları bu porsiyon sayısına göre dinamik olarak çarpılacaktır."
+        )
 
     with col_kalori:
-        kalori_hedefi = st.selectbox("🔥 Kalori Filtresi", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
+        kalori_hedefi = st.selectbox(
+            "🔥 Kalori Filtresi (Kişi Başı)", 
+            ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"],
+            help="⚠️ ÖNEMLİ: Belirtilen kalori limitleri toplam menü için değil, porsiyon başına düşen KİŞİ BAŞI enerji değerleridir."
+        )
 
     st.write("")
     
@@ -47,7 +62,8 @@ with st.container():
     malzemeler_listesi = st.multiselect(
         "🛒 Mevcut Malzeme Envanteri", 
         options=populer_malzemeler,
-        default=["Yumurta", "Domates", "Biber", "Kaşar Peyniri"]
+        default=["Yumurta", "Domates", "Biber", "Kaşar Peyniri"],
+        help="Dolabınızda bulunan aktif malzemeler. Şefimiz bu malzemeleri ana omurga olarak kabul edecektir."
     )
 
     st.write("")
@@ -56,7 +72,7 @@ with st.container():
         if not malzemeler_listesi:
             st.error("🚨 Lütfen envanterinizden en az bir malzeme seçin!")
         else:
-            with st.spinner("🍳 Yapay zeka şefi reçeteleri hazırlıyor..."):
+            with st.spinner("🍳 Yapay zeka şefi mikro-besinleri hesaplıyor..."):
                 payload = {
                     "malzemeler": malzemeler_listesi,
                     "ogun": ogun,
@@ -79,50 +95,46 @@ with st.container():
 
 st.write("---")
 
-# --- KATEGORİZE EDİLMİŞ EXPANDER YAPISI VE VERİ ODAKLI GÖRÜNÜM ---
+# --- MOBİL ÖNCELİKLİ (SADE, DİKEY VE DENGELİ) TARİF LİSTELEME ---
 if st.session_state.mevcut_tarifler:
     st.markdown("### 📋 Oluşturulan Özel Menü Protokolü")
+    st.caption(f"💡 Bilgilendirme: Aşağıdaki makro besin ve kalori değerleri **{kisi_sayisi} Kişilik** porsiyona göre ayarlanmış olup, enerji oranları **Kişi Başı** baz alınarak hesaplanmıştır.")
+    st.write("")
     
-    cols = st.columns(3)
-    
+    # Mobilde 3 kolon yan yana sıkışıp yazıları bozmasın diye tek bir dikey akış (Single Column Card) mimarisi kullanıyoruz.
+    # Bu mimari mobilde kusursuz bir "Kaydırılabilir Feed" (Scrollable Feed) deneyimi sunar.
     for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
-        with cols[idx % 3]:
-            # Profesyonel Kart Başlığı
+        
+        # Her bir tarifi şık ve izole bir blok içerisine alıyoruz
+        with st.container():
             st.markdown(f"""
-                <div style="background-color: #12121f; padding: 1.2rem; border-radius: 12px; border: 1px solid #232338; margin-bottom: 1rem;">
-                    <span style="background-color: #ff4b4b; color: white; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">REÇETE {idx+1}</span>
-                    <h3 style="margin-top: 0.6rem; color: #ffffff; font-family: 'Inter', sans-serif; font-size: 1.3rem;">{tarif.get('title', 'Özel Reçete')}</h3>
+                <div style="background-color: #12121f; padding: 1rem; border-radius: 10px; border: 1px solid #232338; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="background-color: #ff4b4b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;">Reçete {idx+1}</span>
+                    <h3 style="margin-top: 0.4rem; margin-bottom: 0.2rem; color: #ffffff; font-family: 'Inter', sans-serif; font-size: 1.25rem;">{tarif.get('title', 'Özel Reçete')}</h3>
                 </div>
             """, unsafe_allow_html=True)
             
-            # Kalori Veri Kartı
-            st.metric(label="⚡ Enerji Oranı", value=tarif.get('calories', 'Belirtilmedi'))
+            # Mobil ekranlarda yer kaplamayan şık yan yana ufak metrik satırı
+            m_col1, m_col2 = st.columns(2)
+            with m_col1:
+                st.metric(label="🔥 Enerji (Kişi Başı)", value=tarif.get('calories', 'Belirtilmedi'))
+            with m_col2:
+                st.metric(label="👥 Hedef Kitle", value=f"{kisi_sayisi} Kişilik")
             
-            # Malzemeler Bilgi Bandı
-            st.markdown("🔗 **Gerekli Malzemeler:**")
+            st.markdown("🔗 **Reçete İçeriği ve Kompozisyonu:**")
             st.info(", ".join(tarif.get("ingredients", [])))
             
-            # Adım sayısına göre dinamik süre kategorisi belirleme
+            # Adım sayısına göre dinamik süre hesabı
             adımlar_ham = tarif.get("instructions", [])
-            if isinstance(adımlar_ham, list):
-                adım_sayisi = len(adımlar_ham)
-            elif isinstance(adımlar_ham, dict):
-                adım_sayisi = len(adımlar_ham)
-            else:
-                adım_sayisi = 5
+            adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
             
-            if adım_sayisi <= 4:
-                sure_etiketi = "⏱️ Hazırlanış: 5-15 Dakika"
-            elif adım_sayisi <= 7:
-                sure_etiketi = "⏱️ Hazırlanış: 15-30 Dakika"
-            else:
-                sure_etiketi = "⏱️ Hazırlanış: 30+ Dakika"
+            if   adım_sayisi <= 4: sure_etiketi = "⏱️ Süre: Fast-Track (5-15 Dk)"
+            elif adım_sayisi <= 7: sure_etiketi = "⏱️ Süre: Standart (15-30 Dk)"
+            else:                  sure_etiketi = "⏱️ Süre: Gurme (30+ Dk)"
             
-            # Tıklayınca açılan kutu (Expander)
-            with st.expander(sure_etiketi, expanded=False):
-                st.markdown("##### 👨‍🍳 Hazırlanış Adımları")
-                
-                # Ham kod görüntüsünü temizleyip şef reçetesine dönüştüren alan
+            # Tamamen mobil parmak hareketlerine (Touch) duyarlı expander yapısı
+            with st.expander(f"{sure_etiketi} — Reçete Adımlarını Aç/Kapat", expanded=False):
+                st.markdown("##### 👨‍🍳 Hazırlanış Protokolü")
                 if isinstance(adımlar_ham, list):
                     for adim in adımlar_ham:
                         st.write(f"• {adim}")
@@ -132,4 +144,5 @@ if st.session_state.mevcut_tarifler:
                 else:
                     st.write(str(adımlar_ham))
             
-            st.markdown("<br>", unsafe_allow_html=True)
+            # Kartlar arası görsel ayrım şeridi
+            st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)

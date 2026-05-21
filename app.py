@@ -102,7 +102,42 @@ with st.container():
     with col_kalori:
         kalori_hedefi = st.selectbox("🔥 Kalori (Kişi Başı)", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
 
-    populer_malzemeler = ["Süt", "Beyaz Peynir", "Kaşar Peyniri", "Yumurta", "Tereyağı", "Zeytinyağı", "Un", "Tuz", "Karabiber", "Pul Biber", "Domates", "Biber", "Salça", "Kuru Soğan", "Sarımsak", "Patates", "Yoğurt", "Tavuk", "Kıyma"]
+    # --- GENİŞLETİLMİŞ MUTFAK ENVANTERİ (100 Çeşit) ---
+    populer_malzemeler = [
+        # Süt ve Süt Ürünleri
+        "Süt", "Yoğurt", "Tereyağı", "Kaşar Peyniri", "Beyaz Peynir", "Tulum Peyniri", 
+        "Lor Peyniri", "Krem Peynir", "Kaymak", "Kefir",
+        
+        # Et ve Protein
+        "Yumurta", "Dana Kıyma", "Kuşbaşı Et", "Tavuk Göğsü", "Tavuk But", 
+        "Sucuk", "Sosis", "Salam", "Pastırma", "Ton Balığı",
+        
+        # Temel Gıda ve Bakliyat
+        "Un", "Toz Şeker", "Esmer Şeker", "İnce Bulgur", "Pilavlık Bulgur", 
+        "Kırmızı Mercimek", "Yeşil Mercimek", "Nohut", "Kuru Fasulye", "Pirinç", 
+        "Makarna", "Tel Şehriye", "Arpa Şehriye", "Tarhana", "Yulaf",
+        
+        # Yağlar ve Soslar
+        "Ayçiçek Yağı", "Zeytinyağı", "Nar Ekşisi", "Elma Sirkesi", "Üzüm Sirkesi", 
+        "Domates Salçası", "Acı Biber Salçası", "Tatlı Biber Salçası", "Soya Sosu", 
+        "Mayonez", "Ketçap", "Hardal",
+        
+        # Sebzeler ve Yeşillikler
+        "Domates", "Sivri Biber", "Kapya Biber", "Kuru Soğan", "Kırmızı Soğan", 
+        "Sarımsak", "Patates", "Havuç", "Kabak", "Patlıcan", "Ispanak", "Pırasa", 
+        "Limon", "Mantar", "Salatalık", "Marul", "Maydanoz", "Dereotu", "Taze Nane", 
+        "Roka", "Yeşil Soğan",
+        
+        # Baharatlar
+        "Tuz", "Karabiber", "Pul Biber", "İsot", "Kimyon", "Kekik", "Kuru Nane", 
+        "Sumak", "Tatlı Toz Biber", "Tarçın", "Zerdeçal", "Köri", "Susam", "Çörek Otu",
+        
+        # Kuruyemiş, Kahvaltılık ve Fırın
+        "Ceviz İçi", "Fındık", "Badem", "Siyah Zeytin", "Yeşil Zeytin", "Bal", 
+        "Üzüm Pekmezi", "Tahin", "Kabartma Tozu", "Vanilya", "Kuru Maya", 
+        "Kakao", "Damla Çikolata", "Galeta Unu"
+    ]
+    
     malzemeler_listesi = st.multiselect("🛒 Envanteriniz", options=populer_malzemeler, default=[])
     
     st.write("") # Boşluk
@@ -140,7 +175,7 @@ if st.session_state.mevcut_tarifler:
         expander_label = f"🍽️ {tarif.get('title')}  |  ⏳ {sure_kat}"
         
         with st.expander(expander_label, expanded=False):
-            # 1. Özel Tasarım Metrik Kartları (Dev yazılar yerine şık kutular)
+            # 1. Özel Tasarım Metrik Kartları
             m_col1, m_col2 = st.columns(2)
             with m_col1:
                 st.markdown(f"""
@@ -157,7 +192,7 @@ if st.session_state.mevcut_tarifler:
                     </div>
                 """, unsafe_allow_html=True)
             
-            # 2. Malzemeleri Mavi Kutudan Çıkarıp "Şık Etiketlere (Pill)" Çevirme
+            # 2. Malzemeler
             st.markdown("<h5 style='color: #e2e2e2; margin-top: 1rem; margin-bottom: 0.8rem;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
             malzemeler_ham = tarif.get("ingredients", [])
             temiz_malzemeler = []
@@ -179,7 +214,7 @@ if st.session_state.mevcut_tarifler:
             tags_html = "".join([f"<span class='ingredient-tag'>▪ {m}</span>" for m in temiz_malzemeler])
             st.markdown(f"<div style='margin-bottom: 2rem;'>{tags_html}</div>", unsafe_allow_html=True)
             
-            # 3. Hazırlanış Protokolü (Daha iyi satır arası boşlukları)
+            # 3. Hazırlanış Protokolü
             st.markdown("<h5 style='color: #e2e2e2; margin-bottom: 1rem;'>👨‍🍳 Hazırlanış Protokolü</h5>", unsafe_allow_html=True)
             st.markdown("<div style='line-height: 1.8; color: #d1d5db;'>", unsafe_allow_html=True)
             

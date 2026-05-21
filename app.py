@@ -3,6 +3,9 @@ import requests
 
 st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🧑‍🍳", layout="wide")
 
+# --- BACKEND BAĞLANTI ADRESİ ---
+BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
+
 # --- PREMIUM HEADER TASARIMI ---
 st.markdown("""
     <div style="background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #2d2d44;">
@@ -76,7 +79,7 @@ with st.container():
 
 st.write("---")
 
-# --- ESKİ GÜZEL VE SEÇMELİ YAPI (GERİ GELDİ) ---
+# --- KATEGORİZE EDİLMİŞ EXPANDER YAPISI VE VERİ ODAKLI GÖRÜNÜM ---
 if st.session_state.mevcut_tarifler:
     st.markdown("### 📋 Oluşturulan Özel Menü Protokolü")
     
@@ -84,7 +87,7 @@ if st.session_state.mevcut_tarifler:
     
     for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
         with cols[idx % 3]:
-            # Şık Kart Başlığı
+            # Profesyonel Kart Başlığı
             st.markdown(f"""
                 <div style="background-color: #12121f; padding: 1.2rem; border-radius: 12px; border: 1px solid #232338; margin-bottom: 1rem;">
                     <span style="background-color: #ff4b4b; color: white; padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">REÇETE {idx+1}</span>
@@ -92,17 +95,21 @@ if st.session_state.mevcut_tarifler:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Kalori Metriği
+            # Kalori Veri Kartı
             st.metric(label="⚡ Enerji Oranı", value=tarif.get('calories', 'Belirtilmedi'))
             
-            # Gerekli Malzemeler Şeridi
+            # Malzemeler Bilgi Bandı
             st.markdown("🔗 **Gerekli Malzemeler:**")
             st.info(", ".join(tarif.get("ingredients", [])))
             
-            # --- HAZIRLANIŞ SÜRESİ KATEGORİLERİ VE TIKLAYINCA AÇILAN EXPANDER YAPISI ---
-            # Reçetenin içindeki adım sayısına göre otomatik gerçekçi bir süre kategorisi belirliyoruz
+            # Adım sayısına göre dinamik süre kategorisi belirleme
             adımlar_ham = tarif.get("instructions", [])
-            adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, list) else 5
+            if isinstance(adımlar_ham, list):
+                adım_sayisi = len(adımlar_ham)
+            elif isinstance(adımlar_ham, dict):
+                adım_sayisi = len(adımlar_ham)
+            else:
+                adım_sayisi = 5
             
             if adım_sayisi <= 4:
                 sure_etiketi = "⏱️ Hazırlanış: 5-15 Dakika"
@@ -115,7 +122,7 @@ if st.session_state.mevcut_tarifler:
             with st.expander(sure_etiketi, expanded=False):
                 st.markdown("##### 👨‍🍳 Hazırlanış Adımları")
                 
-                # Bilgisayar çıktısı gibi duran o ham dict/list görüntüsünü temizliyoruz
+                # Ham kod görüntüsünü temizleyip şef reçetesine dönüştüren alan
                 if isinstance(adımlar_ham, list):
                     for adim in adımlar_ham:
                         st.write(f"• {adim}")
@@ -123,7 +130,6 @@ if st.session_state.mevcut_tarifler:
                     for k, v in adımlar_ham.items():
                         st.write(f"**Adım {int(k)+1 if k.isdigit() else k}:** {v}")
                 else:
-                    # Eğer veri düz metin olarak geldiyse doğrudan şık bir fontla yazdır
                     st.write(str(adımlar_ham))
             
             st.markdown("<br>", unsafe_allow_html=True)

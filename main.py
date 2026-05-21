@@ -16,7 +16,7 @@ MONGO_URI = os.environ.get("MONGO_URI")
 if not API_KEY or not MONGO_URI:
     raise ValueError("🚨 API_KEY veya MONGO_URI eksik! Lütfen Render panelinden kontrol edin.")
 
-# --- YENİ NESİL GEMINI İSTEMCİSİ (GOOGLE-GENAI SÜRÜMÜ) ---
+# --- YENİ NESİL GEMINI İSTEMCİSİ ---
 ai_client = genai.Client(api_key=API_KEY)
 
 # --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
@@ -44,7 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 422 HATALARINI ÖNLEYEN ESNEK VERİ MODELİ ---
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
     ogun: str
@@ -61,7 +60,7 @@ def veritabanina_kaydet(yeni_tarifler):
     except Exception as e:
         print(f"⚠️ Veritabanı kayıt hatası: {e}")
 
-# --- EN KARARLI RETRY MOTORUNA SAHİP TARİF BULMA ROUTE'U ---
+# --- GÜÇLÜ RETRY MOTORUNA SAHİP GEMINI 2.5 PRO ROUTE'U ---
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
     malzemeler = istek.malzemeler if istek.malzemeler else []
@@ -87,14 +86,14 @@ def tarif_bul(istek: TarifIsteği):
     YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra hiçbir metin veya markdown işareti ekleme.
     """
 
-    # --- DAHA GÜÇLÜ RETRY VE KARARLI MODEL MOTORU ---
-    max_deneme = 5  # Deneme sayısını 5'e çıkardık
-    bekleme_suresi = 3 # İlk bekleme 3 saniye
+    max_deneme = 5  
+    bekleme_suresi = 3 
     
     for deneme in range(max_deneme):
         try:
+            # --- MODEL GEMINI-2.5-PRO OLARAK GÜNCELLENDİ ---
             response = ai_client.models.generate_content(
-                model='gemini-1.5-flash', # En stabil, yoğunluktan en az etkilenen modele geçtik
+                model='gemini-2.5-pro', 
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json"
@@ -107,10 +106,8 @@ def tarif_bul(istek: TarifIsteği):
             for t in tarifler:
                 t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
             
-            # Veritabanına kaydet (MongoDB _id'leri ekleyecek)
             veritabanina_kaydet(tarifler)
             
-            # ObjectId tip uyuşmazlığını düz metne çevirme kalkanı
             for t in tarifler:
                 if "_id" in t:
                     t["_id"] = str(t["_id"])
@@ -119,9 +116,9 @@ def tarif_bul(istek: TarifIsteği):
 
         except Exception as e:
             if deneme < max_deneme - 1:
-                print(f"⚠️ Google API meşgul (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor...")
+                print(f"⚠️ API Geçici Pürüz Yaşadı (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor...")
                 time.sleep(bekleme_suresi)
-                bekleme_suresi += 3 # Doğrusal artış: 3sn, 6sn, 9sn, 12sn bekleyecek (Toplamda 30 saniyelik bir direnç penceresi)
+                bekleme_suresi += 3 
             else:
                 print(f"🚨 TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Google API Yoğunluk Sınırı Aşıldı: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı veya Bulunamadı: {str(e)}")

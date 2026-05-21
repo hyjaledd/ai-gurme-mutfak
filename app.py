@@ -2,12 +2,11 @@ import streamlit as st
 import requests
 
 # Sayfa yapılandırması
-st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🥂", layout="wide")
+st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🍳", layout="wide")
 
 # --- ADVANCED PREMIUM CSS ENJEKSİYONU ---
 st.markdown("""
     <style>
-    /* Ana Arka Plan ve Gizlemeler */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -68,6 +67,17 @@ st.markdown("""
         font-weight: 700;
         letter-spacing: -0.5px;
     }
+
+    /* BONUS TATLI İÇİN ÖZEL ALTIN ÇERÇEVELİ PANEL */
+    .bonus-dessert-box {
+        background: linear-gradient(135deg, #1f1911 0%, #14110c 100%);
+        border: 2px solid #b8860b;
+        padding: 1.2rem;
+        border-radius: 12px;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 25px rgba(184, 134, 11, 0.15);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -102,50 +112,25 @@ with st.container():
     with col_kalori:
         kalori_hedefi = st.selectbox("🔥 Kalori (Kişi Başı)", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
 
-    # --- GENİŞLETİLMİŞ MUTFAK ENVANTERİ (100 Çeşit) ---
+    # Genişletilmiş Mutfak Envanteri (~100 Çeşit)
     populer_malzemeler = [
-        # Süt ve Süt Ürünleri
-        "Süt", "Yoğurt", "Tereyağı", "Kaşar Peyniri", "Beyaz Peynir", "Tulum Peyniri", 
-        "Lor Peyniri", "Krem Peynir", "Kaymak", "Kefir",
-        
-        # Et ve Protein
-        "Yumurta", "Dana Kıyma", "Kuşbaşı Et", "Tavuk Göğsü", "Tavuk But", 
-        "Sucuk", "Sosis", "Salam", "Pastırma", "Ton Balığı",
-        
-        # Temel Gıda ve Bakliyat
-        "Un", "Toz Şeker", "Esmer Şeker", "İnce Bulgur", "Pilavlık Bulgur", 
-        "Kırmızı Mercimek", "Yeşil Mercimek", "Nohut", "Kuru Fasulye", "Pirinç", 
-        "Makarna", "Tel Şehriye", "Arpa Şehriye", "Tarhana", "Yulaf",
-        
-        # Yağlar ve Soslar
-        "Ayçiçek Yağı", "Zeytinyağı", "Nar Ekşisi", "Elma Sirkesi", "Üzüm Sirkesi", 
-        "Domates Salçası", "Acı Biber Salçası", "Tatlı Biber Salçası", "Soya Sosu", 
-        "Mayonez", "Ketçap", "Hardal",
-        
-        # Sebzeler ve Yeşillikler
-        "Domates", "Sivri Biber", "Kapya Biber", "Kuru Soğan", "Kırmızı Soğan", 
-        "Sarımsak", "Patates", "Havuç", "Kabak", "Patlıcan", "Ispanak", "Pırasa", 
-        "Limon", "Mantar", "Salatalık", "Marul", "Maydanoz", "Dereotu", "Taze Nane", 
-        "Roka", "Yeşil Soğan",
-        
-        # Baharatlar
-        "Tuz", "Karabiber", "Pul Biber", "İsot", "Kimyon", "Kekik", "Kuru Nane", 
-        "Sumak", "Tatlı Toz Biber", "Tarçın", "Zerdeçal", "Köri", "Susam", "Çörek Otu",
-        
-        # Kuruyemiş, Kahvaltılık ve Fırın
-        "Ceviz İçi", "Fındık", "Badem", "Siyah Zeytin", "Yeşil Zeytin", "Bal", 
-        "Üzüm Pekmezi", "Tahin", "Kabartma Tozu", "Vanilya", "Kuru Maya", 
-        "Kakao", "Damla Çikolata", "Galeta Unu"
+        "Süt", "Yoğurt", "Tereyağı", "Kaşar Peyniri", "Beyaz Peynir", "Tulum Peyniri", "Lor Peyniri", "Krem Peynir", "Kaymak", "Kefir",
+        "Yumurta", "Dana Kıyma", "Kuşbaşı Et", "Tavuk Göğsü", "Tavuk But", "Sucuk", "Sosis", "Salam", "Pastırma", "Ton Balığı",
+        "Un", "Toz Şeker", "Esmer Şeker", "İnce Bulgur", "Pilavlık Bulgur", "Kırmızı Mercimek", "Yeşil Mercimek", "Nohut", "Kuru Fasulye", "Pirinç", "Makarna", "Tel Şehriye", "Arpa Şehriye", "Tarhana", "Yulaf",
+        "Ayçiçek Yağı", "Zeytinyağı", "Nar Ekşisi", "Elma Sirkesi", "Üzüm Sirkesi", "Domates Salçası", "Acı Biber Salçası", "Tatlı Biber Salçası", "Soya Sosu", "Mayonez", "Ketçap", "Hardal",
+        "Domates", "Sivri Biber", "Kapya Biber", "Kuru Soğan", "Kırmızı Soğan", "Sarımsak", "Patates", "Havuç", "Kabak", "Patlıcan", "Ispanak", "Pırasa", "Limon", "Mantar", "Salatalık", "Marul", "Maydanoz", "Dereotu", "Taze Nane", "Roka", "Yeşil Soğan",
+        "Tuz", "Karabiber", "Pul Biber", "İsot", "Kimyon", "Kekik", "Kuru Nane", "Sumak", "Tatlı Toz Biber", "Tarçın", "Zerdeçal", "Köri", "Susam", "Çörek Otu",
+        "Ceviz İçi", "Fındık", "Badem", "Siyah Zeytin", "Yeşil Zeytin", "Bal", "Üzüm Pekmezi", "Tahin", "Kabartma Tozu", "Vanilya", "Kuru Maya", "Kakao", "Damla Çikolata", "Galeta Unu"
     ]
     
     malzemeler_listesi = st.multiselect("🛒 Envanteriniz", options=populer_malzemeler, default=[])
     
-    st.write("") # Boşluk
+    st.write("") 
     if st.button("GURME REÇETELERİ OLUŞTUR", use_container_width=True):
         if not malzemeler_listesi:
             st.error("🚨 Lütfen mutfak envanterinizden malzeme seçin!")
         else:
-            with st.spinner("🍳 Şefimiz size özel reçeteyi hazırlıyor..."):
+            with st.spinner("🍳 Şefimiz size özel reçeteyi ve bonus tatlıyı hazırlıyor..."):
                 payload = {"malzemeler": malzemeler_listesi, "ogun": ogun, "kisi_sayisi": int(kisi_sayisi), "kalori_hedefi": kalori_hedefi, "gosterilen_tarifler": st.session_state.gosterilen_tarifler}
                 try:
                     response = requests.post(f"{BACKEND_URL}/tarif-bul", json=payload, timeout=60)
@@ -160,72 +145,75 @@ st.write("---")
 
 # --- KATEGORİZE EDİLMİŞ ÖZEL REÇETE GÖSTERİMİ ---
 if st.session_state.mevcut_tarifler:
+    # Gelen paketi Ana Tarifler ve Bonus Tatlılar olarak ikiye bölüyoruz
+    ana_tarifler = [t for t in st.session_state.mevcut_tarifler if not t.get("is_bonus", False)]
+    bonus_tatlilar = [t for t in st.session_state.mevcut_tarifler if t.get("is_bonus", False)]
+    
+    # --- ADIM A: ANA TARİFLERİN LİSTELENMESİ ---
     st.markdown("<h3 style='color: #b8860b; margin-bottom: 0.5rem;'>📋 Tadım Menüsü</h3>", unsafe_allow_html=True)
-    st.caption("Ayrıntılı mutfak protokolünü ve malzeme oranlarını görmek için reçetelerin üzerine dokunun.")
+    st.caption("Ayrıntılı mutfak protokolünü görmek için reçetelerin üzerine dokunun.")
     st.write("")
     
-    for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
+    for idx, tarif in enumerate(ana_tarifler):
         adımlar_ham = tarif.get("instructions", [])
         adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
-        
-        if   adım_sayisi <= 4: sure_kat = "Hızlı Servis"
-        elif adım_sayisi <= 7: sure_kat = "Standart Süre"
-        else:                  sure_kat = "Gurme (30+ Dk)"
+        sure_kat = "Hızlı Servis" if adım_sayisi <= 4 else "Standart Süre" if adım_sayisi <= 7 else "Gurme (30+ Dk)"
         
         expander_label = f"🍽️ {tarif.get('title')}  |  ⏳ {sure_kat}"
         
         with st.expander(expander_label, expanded=False):
-            # 1. Özel Tasarım Metrik Kartları
             m_col1, m_col2 = st.columns(2)
             with m_col1:
-                st.markdown(f"""
-                    <div class="premium-metric">
-                        <div class="metric-title">🔥 Enerji Değeri (Kişi Başı)</div>
-                        <div class="metric-value">{tarif.get('calories', 'N/A')}</div>
-                    </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div class="premium-metric"><div class="metric-title">🔥 Enerji Değeri (Kişi Başı)</div><div class="metric-value">{tarif.get("calories", "N/A")}</div></div>', unsafe_allow_html=True)
             with m_col2:
-                st.markdown(f"""
-                    <div class="premium-metric">
-                        <div class="metric-title">👥 Hedef Porsiyon</div>
-                        <div class="metric-value">{kisi_sayisi} Kişilik</div>
-                    </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div class="premium-metric"><div class="metric-title">👥 Hedef Porsiyon</div><div class="metric-value">{kisi_sayisi} Kişilik</div></div>', unsafe_allow_html=True)
             
-            # 2. Malzemeler
-            st.markdown("<h5 style='color: #e2e2e2; margin-top: 1rem; margin-bottom: 0.8rem;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
+            st.markdown("<h5 style='color: #e2e2e2;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
             malzemeler_ham = tarif.get("ingredients", [])
-            temiz_malzemeler = []
+            temiz_malzemeler = [f"{m.get('name', str(m))} {m.get('amount', '')}" if isinstance(m, dict) else str(m) for m in malzemeler_ham] if isinstance(malzemeler_ham, list) else [f"{k}: {v}" for k,v in malzemeler_ham.items()] if isinstance(malzemeler_ham, dict) else [str(malzemeler_ham)]
             
-            if isinstance(malzemeler_ham, list):
-                for m in malzemeler_ham:
-                    if isinstance(m, dict):
-                        isim = m.get("name", m.get("item", str(m)))
-                        miktar = m.get("amount", m.get("quantity", ""))
-                        temiz_malzemeler.append(f"{isim} {miktar}" if miktar else isim)
-                    else:
-                        temiz_malzemeler.append(str(m))
-            elif isinstance(malzemeler_ham, dict):
-                temiz_malzemeler = [f"{k}: {v}" for k, v in malzemeler_ham.items()]
-            else:
-                temiz_malzemeler = [str(malzemeler_ham)]
-            
-            # Etiketleri HTML içine gömme
             tags_html = "".join([f"<span class='ingredient-tag'>▪ {m}</span>" for m in temiz_malzemeler])
             st.markdown(f"<div style='margin-bottom: 2rem;'>{tags_html}</div>", unsafe_allow_html=True)
             
-            # 3. Hazırlanış Protokolü
             st.markdown("<h5 style='color: #e2e2e2; margin-bottom: 1rem;'>👨‍🍳 Hazırlanış Protokolü</h5>", unsafe_allow_html=True)
-            st.markdown("<div style='line-height: 1.8; color: #d1d5db;'>", unsafe_allow_html=True)
-            
             if isinstance(adımlar_ham, list):
-                for adim in adımlar_ham:
-                    st.write(f"**—** {adim}")
+                for adim in adımlar_ham: st.write(f"**—** {adim}")
             elif isinstance(adımlar_ham, dict):
-                for k, v in adımlar_ham.items():
-                    st.write(f"**{k}:** {v}")
-            else:
-                st.write(str(adımlar_ham))
+                for k, v in adımlar_ham.items(): st.write(f"**{k}:** {v}")
+            else: st.write(str(adımlar_ham))
+
+    # --- ADIM B: LÜKS ALTIN KUTUDA BONUS TATLI GÖSTERİMİ ---
+    if bonus_tatlilar:
+        st.write("")
+        st.markdown("<h4 style='color: #ffd700; margin-top: 2rem; margin-bottom: 0.5rem;'>✨ Şefin İkramı (Bonus Reçete)</h4>", unsafe_allow_html=True)
+        
+        for tatli in bonus_tatlilar:
+            expander_tatli_label = f"🎁 {tatli.get('title')}  |  ✨ Gurme Kapanış Sürprizi"
+            
+            with st.expander(expander_tatli_label, expanded=True): # Tatlı kutusu heyecan yaratması için ilk açılışta açık gelir
+                st.markdown('<div class="bonus-dessert-box">', unsafe_allow_html=True)
                 
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown("<hr style='border-color: #2d333f; margin-top: 2rem;'><p style='text-align: center; color: #586069; font-size: 0.75rem; letter-spacing: 1px;'>AI GOURMET KITCHEN © 2026</p>", unsafe_allow_html=True)
+                t_col1, t_col2 = st.columns(2)
+                with t_col1:
+                    st.markdown(f'<div class="premium-metric" style="border-left-color: #ffd700;"><div class="metric-title" style="color: #ffd700;">🔥 Tatlı Enerji Oranı</div><div class="metric-value">{tatli.get("calories", "N/A")}</div></div>', unsafe_allow_html=True)
+                with t_col2:
+                    st.markdown(f'<div class="premium-metric" style="border-left-color: #ffd700;"><div class="metric-title" style="color: #ffd700;">🥂 Sunum Protokolü</div><div class="metric-value">{kisi_sayisi} Kişilik İkram</div></div>', unsafe_allow_html=True)
+                
+                st.markdown("<h5 style='color: #ffd700;'>🛒 Tatlı İçin Gerekli Kiler Malzemeleri</h5>", unsafe_allow_html=True)
+                t_malzemeler_ham = tatli.get("ingredients", [])
+                t_temiz = [f"{m.get('name', str(m))} {m.get('amount', '')}" if isinstance(m, dict) else str(m) for m in t_malzemeler_ham] if isinstance(t_malzemeler_ham, list) else [f"{k}: {v}" for k,v in t_malzemeler_ham.items()] if isinstance(t_malzemeler_ham, dict) else [str(t_malzemeler_ham)]
+                
+                t_tags_html = "".join([f"<span class='ingredient-tag' style='border-color: #b8860b; color: #ffd700;'>✨ {m}</span>" for m in t_temiz])
+                st.markdown(f"<div style='margin-bottom: 2rem;'>{t_tags_html}</div>", unsafe_allow_html=True)
+                
+                st.markdown("<h5 style='color: #ffd700; margin-bottom: 1rem;'>👨‍🍳 Şefin Gizli Tatlı Yapılış Adımları</h5>", unsafe_allow_html=True)
+                t_adımlar = tatli.get("instructions", [])
+                if isinstance(t_adımlar, list):
+                    for adim in t_adımlar: st.write(f"**•** {adim}")
+                elif isinstance(t_adımlar, dict):
+                    for k, v in t_adımlar.items(): st.write(f"**{k}:** {v}")
+                else: st.write(str(t_adımlar))
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+    st.markdown("<hr style='border-color: #2d333f; margin-top: 2rem;'><p style='text-align: center; color: #586069; font-size: 0.75rem; letter-spacing: 1px;'>AI GOURMET KITCHEN © 2026</p>", unsafe_allow_html=True)

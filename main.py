@@ -1,7 +1,7 @@
 import os
 import json
 import time
-import random  # <--- RASTGELELİK İÇİN EKLENDİ
+import random
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -79,7 +79,6 @@ def tarif_bul(istek: TarifIsteği):
     
     all_candidates = list(tarif_koleksiyonu.find(db_query))
     
-    # --- SİHİRLİ DOKUNUŞ: VERİTABANINDAN GELENLERİ RASTGELE KARIŞTIR ---
     random.shuffle(all_candidates) 
     
     ana_adaylar = []
@@ -101,12 +100,10 @@ def tarif_bul(istek: TarifIsteği):
                     match_count += 1
                     break
         
-        # Eğer malzeme eşleşmesi %70'in üzerindeyse...
         if len(recipe_ing_lower) > 0 and (match_count / len(recipe_ing_lower)) >= 0.7:
             if "_id" in recipe:
                 recipe["_id"] = str(recipe["_id"]) 
             
-            # Veritabanından çekerken de 3 Ana Yemek + 1 Tatlı kuralını garantile
             if recipe.get("is_bonus"):
                 if len(tatli_adaylar) < 1:
                     tatli_adaylar.append(recipe)
@@ -117,11 +114,15 @@ def tarif_bul(istek: TarifIsteği):
             if len(ana_adaylar) == 3 and len(tatli_adaylar) == 1:
                 break
 
-    # Toplam 4 tarif (3 ana + 1 tatlı) bulduysak gönder
     matching_recipes = ana_adaylar + tatli_adaylar
     if len(matching_recipes) == 4:
         okunan_isimler = [r.get("title", "İsimsiz") for r in matching_recipes]
         print(f"📦 [DB-OKUMA] Arşivden RASTGELE seçilen menü: {okunan_isimler}", flush=True)
+        
+        # --- UX İÇİN YAPAY BEKLEME ---
+        # Veritabanı çok hızlı olsa bile kullanıcıya "şef çalışıyor" hissiyatı vermek için 1 saniye bekletiyoruz
+        time.sleep(1)
+        
         return {"tarifler": matching_recipes}
 
     print("🍳 [SİSTEM] Arşivde yeterli kombinasyon yok. Gemini 2.5 Pro zorunlu 4'lü menüyü tasarlıyor...", flush=True)

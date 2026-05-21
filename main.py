@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import random  # <--- RASTGELELİK İÇİN EKLENDİ
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -77,10 +78,14 @@ def tarif_bul(istek: TarifIsteği):
     }
     
     all_candidates = list(tarif_koleksiyonu.find(db_query))
-    matching_recipes = []
+    
+    # --- SİHİRLİ DOKUNUŞ: VERİTABANINDAN GELENLERİ RASTGELE KARIŞTIR ---
+    random.shuffle(all_candidates) 
+    
+    ana_adaylar = []
+    tatli_adaylar = []
     
     for recipe in all_candidates:
-        # KESİN ÇÖZÜM: Malzemeler dict mi liste mi string mi akıllıca tespit ediliyor
         recipe_ing_lower = []
         for m in recipe.get("ingredients", []):
             if isinstance(m, dict):
@@ -96,16 +101,27 @@ def tarif_bul(istek: TarifIsteği):
                     match_count += 1
                     break
         
+        # Eğer malzeme eşleşmesi %70'in üzerindeyse...
         if len(recipe_ing_lower) > 0 and (match_count / len(recipe_ing_lower)) >= 0.7:
             if "_id" in recipe:
                 recipe["_id"] = str(recipe["_id"]) 
-            matching_recipes.append(recipe)
-            if len(matching_recipes) >= 4:
+            
+            # Veritabanından çekerken de 3 Ana Yemek + 1 Tatlı kuralını garantile
+            if recipe.get("is_bonus"):
+                if len(tatli_adaylar) < 1:
+                    tatli_adaylar.append(recipe)
+            else:
+                if len(ana_adaylar) < 3:
+                    ana_adaylar.append(recipe)
+            
+            if len(ana_adaylar) == 3 and len(tatli_adaylar) == 1:
                 break
 
-    if len(matching_recipes) >= 4:
+    # Toplam 4 tarif (3 ana + 1 tatlı) bulduysak gönder
+    matching_recipes = ana_adaylar + tatli_adaylar
+    if len(matching_recipes) == 4:
         okunan_isimler = [r.get("title", "İsimsiz") for r in matching_recipes]
-        print(f"📦 [DB-OKUMA] Arşivden çekilen menü: {okunan_isimler}", flush=True)
+        print(f"📦 [DB-OKUMA] Arşivden RASTGELE seçilen menü: {okunan_isimler}", flush=True)
         return {"tarifler": matching_recipes}
 
     print("🍳 [SİSTEM] Arşivde yeterli kombinasyon yok. Gemini 2.5 Pro zorunlu 4'lü menüyü tasarlıyor...", flush=True)
@@ -146,7 +162,6 @@ def tarif_bul(istek: TarifIsteği):
             
             raw_text = response.text.strip()
             
-            # GÜVENLİK KALKANI: Gemini inatla markdown kullanırsa JSON'ı temizle
             if raw_text.startswith("```json"):
                 raw_text = raw_text[7:]
             if raw_text.endswith("```"):

@@ -80,9 +80,16 @@ def tarif_bul(istek: TarifIsteği):
     matching_recipes = []
     
     for recipe in all_candidates:
-        recipe_ing_lower = [i.lower() for i in recipe.get("ingredients", [])]
-        match_count = 0
+        # KESİN ÇÖZÜM: Malzemeler dict mi liste mi string mi akıllıca tespit ediliyor
+        recipe_ing_lower = []
+        for m in recipe.get("ingredients", []):
+            if isinstance(m, dict):
+                isim = m.get("name", m.get("item", str(m)))
+                recipe_ing_lower.append(isim.lower())
+            else:
+                recipe_ing_lower.append(str(m).lower())
         
+        match_count = 0
         for r_ing in recipe_ing_lower:
             for u_mat in malzemeler:
                 if u_mat.lower() in r_ing:
@@ -96,7 +103,6 @@ def tarif_bul(istek: TarifIsteği):
             if len(matching_recipes) >= 4:
                 break
 
-    # Arşivde en az 4 tarif (3 ana + 1 tatlı) varsa direkt DB'den getir
     if len(matching_recipes) >= 4:
         okunan_isimler = [r.get("title", "İsimsiz") for r in matching_recipes]
         print(f"📦 [DB-OKUMA] Arşivden çekilen menü: {okunan_isimler}", flush=True)
@@ -138,7 +144,15 @@ def tarif_bul(istek: TarifIsteği):
                 ),
             )
             
-            raw_text = response.text
+            raw_text = response.text.strip()
+            
+            # GÜVENLİK KALKANI: Gemini inatla markdown kullanırsa JSON'ı temizle
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            raw_text = raw_text.strip()
+            
             tarifler = json.loads(raw_text)
             
             for t in tarifler:
@@ -147,7 +161,6 @@ def tarif_bul(istek: TarifIsteği):
                 if "is_bonus" not in t:
                     t["is_bonus"] = False
             
-            # Garanti Altına Alma: Eğer AI 4 tarif üretti ama tatlı etiketini koymayı unuttuysa, sonuncuyu zorla tatlı yap
             if len(tarifler) >= 4 and not any(x.get("is_bonus") for x in tarifler):
                 tarifler[-1]["is_bonus"] = True
             
@@ -166,4 +179,4 @@ def tarif_bul(istek: TarifIsteği):
                 bekleme_suresi += 3 
             else:
                 print(f"🚨 [HATA] TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}", flush=True)
-                raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı veya Ayrıştırma Hatası: {str(e)}")

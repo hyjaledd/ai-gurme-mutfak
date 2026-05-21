@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,9 +14,9 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not API_KEY or not MONGO_URI:
-    raise ValueError("🚨 API_KEY veya MONGO_URI eksik! Lütfen Render panelinden kontrol edin.")
+    raise ValueError("🚨 API_KEY veya MONGO_URI eksik!")
 
-# --- YENİ NESİL GEMINI İSTEMCİSİ (GOOGLE-GENAI SÜRÜMÜ) ---
+# --- YENİ NESİL GEMINI İSTEMCİSİ ---
 ai_client = genai.Client(api_key=API_KEY)
 
 # --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
@@ -43,7 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 422 HATALARINI ÖNLEYEN ESNEK VERİ MODELİ ---
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
     ogun: str
@@ -54,9 +54,8 @@ class TarifIsteği(BaseModel):
 def veritabanina_kaydet(yeni_tarifler):
     try:
         if yeni_tarifler:
-            # insert_many işlemi listenin orijinalini değiştirip içine ObjectId ekler
             tarif_koleksiyonu.insert_many(yeni_tarifler)
-            toplam_adet = static_count = tarif_koleksiyonu.count_documents({})
+            toplam_adet = tarif_koleksiyonu.count_documents({})
             print(f"📈 Bulut Veritabanı Güncellendi! Toplam Tarif Sayısı: {toplam_adet}")
     except Exception as e:
         print(f"⚠️ Veritabanı kayıt hatası: {e}")
@@ -69,7 +68,7 @@ def tarif_bul(istek: TarifIsteği):
     kalori_hedefi = istek.kalori_hedefi if istek.kalori_hedefi else "Fark Etmez"
     gosterilenler = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
 
-    print(f"🤖 AI Şef Tetiklendi: {ogun} öğünü için tarif hazırlanıyor... (Porsiyon: {kisi_sayisi})")
+    print(f"🤖 AI Şef Tetiklendi: {ogun} öğünü için tarif hazırlanıyor...")
     yasakli_metin = ", ".join(gosterilenler) if gosterilenler else "Yok"
     
     prompt = f"""
@@ -86,33 +85,42 @@ def tarif_bul(istek: TarifIsteği):
     YANIT FORMATI SADECE GEÇERLİ BİR JSON ARRAY OLMALIDIR. Ekstra hiçbir metin veya markdown işareti ekleme.
     """
 
-    try:
-        response = ai_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
-            ),
-        )
-        
-        raw_text = response.text
-        tarifler = json.loads(raw_text)
-        
-        for t in tarifler:
-            t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
-        
-        # 1. Veritabanına kaydet (Bu aşamada tariflerin içine MongoDB _id ekleyecek)
-        veritabanina_kaydet(tarifler)
-        
-        # --- CRITICAL FIX: OBJECTID FORMATINI SAF JSON'A UYGUN HALE GETİR ---
-        # Her bir tarifin içindeki _id alanını string yazı formatına çeviriyoruz ki FastAPI patlamasın.
-        for t in tarifler:
-            if "_id" in t:
-                t["_id"] = str(t["_id"])
-        
-        # 2. Şimdi tamamen güvenli bir şekilde Streamlit'e gönder
-        return {"tarifler": tarifler}
+    # --- GOOGLE 503 HATASI İÇİN AKILLI RETRY (YENİDEN DENEME) MOTORU ---
+    max_deneme = 3
+    bekleme_suresi = 2 # Saniye cinsinden
+    
+    for deneme in range(max_deneme):
+        try:
+            response = ai_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                ),
+            )
+            
+            raw_text = response.text
+            tarifler = json.loads(raw_text)
+            
+            for t in tarifler:
+                t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
+            
+            veritabanina_kaydet(tarifler)
+            
+            for t in tarifler:
+                if "_id" in t:
+                    t["_id"] = str(t["_id"])
+            
+            # Eğer başarılı olduysa döngüden çık ve veriyi gönder
+            return {"tarifler": tarifler}
 
-    except Exception as e:
-        print(f"🚨 FONKSİYON İÇİNDE HATA: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            # Eğer hata Google 503 veya başka bir şeyse ve hâlâ deneme hakkımız varsa bekle ve tekrar et
+            if deneme < max_deneme - 1:
+                print(f"⚠️ Google API meşgul (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor... Hata: {str(e)}")
+                time.sleep(bekleme_suresi)
+                bekleme_suresi *= 2 # Üstel bekleme (Önce 2sn, sonra 4sn bekleyecek)
+            else:
+                # Tüm denemeler bittiyse ve hâlâ patlıyorsa son çare olarak hatayı fırlat
+                print(f"🚨 TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Google API Yoğunluk Sınırı Aşıldı: {str(e)}")

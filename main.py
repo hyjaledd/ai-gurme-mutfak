@@ -30,9 +30,9 @@ try:
     db = client["gurme_mutfak_db"]          
     tarif_koleksiyonu = db["tarifler"]     
     client.admin.command('ping')
-    print("✅ MÜJDE: MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!")
+    print("✅ [SİSTEM] MongoDB Atlas Bulut Veritabanına Başarıyla Bağlanıldı!", flush=True)
 except Exception as e:
-    print(f"🚨 MongoDB Bağlantı Hatası: {str(e)}")
+    print(f"🚨 [HATA] MongoDB Bağlantı Hatası: {str(e)}", flush=True)
 
 app = FastAPI()
 
@@ -54,13 +54,15 @@ class TarifIsteği(BaseModel):
 def veritabanina_kaydet(yeni_tarifler):
     try:
         if yeni_tarifler:
+            kaydedilen_isimler = [t.get("title", "İsimsiz") for t in yeni_tarifler]
             tarif_koleksiyonu.insert_many(yeni_tarifler)
             toplam_adet = tarif_koleksiyonu.count_documents({})
-            print(f"📈 Bulut Veritabanı Güncellendi! Toplam Tarif Sayısı: {toplam_adet}")
+            # KESİN LOG: Hangi tariflerin kaydedildiğini anında Render'a basar
+            print(f"💾 [DB-KAYIT] {len(yeni_tarifler)} yeni tarif BAŞARIYLA KAYDEDİLDİ! Eklenenler: {kaydedilen_isimler} | Arşivdeki Toplam Tarif: {toplam_adet}", flush=True)
     except Exception as e:
-        print(f"⚠️ Veritabanı kayıt hatası: {e}")
+        print(f"⚠️ [DB-HATA] Veritabanı kayıt hatası: {e}", flush=True)
 
-# --- DATABASE-FIRST SMART CACHE (ÖNCE VERİTABANI) MOTORU ---
+# --- DATABASE-FIRST SMART CACHE MOTORU ---
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
     malzemeler = istek.malzemeler if istek.malzemeler else []
@@ -69,9 +71,8 @@ def tarif_bul(istek: TarifIsteği):
     kalori_hedefi = istek.kalori_hedefi if istek.kalori_hedefi else "Fark Etmez"
     gosterilen_tender = istek.gosterilen_tarifler if istek.gosterilen_tarifler else []
 
-    print(f"🔍 [ADIM 1] Önce Veritabanı Kontrol Ediliyor: {ogun} öğünü için uygun arşiv var mı?")
+    print(f"🔍 [SİSTEM] {ogun} öğünü için istek geldi. Önce veritabanı (Arşiv) kontrol ediliyor...", flush=True)
     
-    # Veritabanında aynı öğünde olan ve kullanıcının bu oturumda henüz görmediği tarifleri filtrele
     db_query = {
         "ogun": ogun,
         "title": {"$nin": gosterilen_tender}
@@ -80,7 +81,6 @@ def tarif_bul(istek: TarifIsteği):
     all_candidates = list(tarif_koleksiyonu.find(db_query))
     matching_recipes = []
     
-    # Veritabanındaki tariflerin malzemelerini kullanıcının dolabındakilerle akıllıca eşleştirme
     for recipe in all_candidates:
         recipe_ing_lower = [i.lower() for i in recipe.get("ingredients", [])]
         match_count = 0
@@ -91,23 +91,23 @@ def tarif_bul(istek: TarifIsteği):
                     match_count += 1
                     break
         
-        # Eğer tarifteki malzemelerin %70 veya daha fazlası kullanıcının elinde mevcutsa uygun kabul et
         if len(recipe_ing_lower) > 0 and (match_count / len(recipe_ing_lower)) >= 0.7:
             if "_id" in recipe:
-                recipe["_id"] = str(recipe["_id"]) # ObjectId çökme koruması
+                recipe["_id"] = str(recipe["_id"]) 
             matching_recipes.append(recipe)
             if len(matching_recipes) >= 3:
                 break
 
-    # KURAL: Eğer veritabanında yeterli (3 adet) eşleşen tarif bulduysak doğrudan ekrana bas (Gemini çağrılmaz)
+    # KURAL: Veritabanında varsa doğrudan oradan oku
     if len(matching_recipes) >= 3:
-        print("🎯 [BAŞARI] Uygun tarifler veritabanından anında getirildi! API kullanılmadı.")
+        okunan_isimler = [r.get("title", "İsimsiz") for r in matching_recipes]
+        # KESİN LOG: Hangi tariflerin DB'den çekildiğini anında Render'a basar
+        print(f"📦 [DB-OKUMA] Arşivde uygun tarifler BULUNDU! API çağrılmadan doğrudan veritabanından çekilenler: {okunan_isimler}", flush=True)
         return {"tarifler": matching_recipes}
 
-    # KURAL DEVRİ: Eğer veritabanında yeterli tarif yoksa Gemini 2.5 Pro devreye girer
-    print("🍳 [BİLGİ] Veritabanında yeterli reçete bulunamadı. Yapay zeka yeni tarifler üretiyor...")
+    # KURAL DEVRİ: Veritabanında yoksa Gemini'yi çağır
+    print("🍳 [SİSTEM] Veritabanında yeterli tarif yok. Gemini 2.5 Pro yeni reçeteler üretiyor...", flush=True)
     
-    # Gemini'nin hem geçmişte gösterilenleri hem de az önce DB'de bulduklarımızı tekrar üretmesini engelliyoruz
     yasakli_listesi = gosterilen_tender + [r["title"] for r in matching_recipes]
     yasakli_metin = ", ".join(yasakli_listesi) if yasakli_listesi else "Yok"
     
@@ -141,12 +141,11 @@ def tarif_bul(istek: TarifIsteği):
             raw_text = response.text
             tarifler = json.loads(raw_text)
             
-            # İleride veritabanından öğün bazlı arama yapabilmek için "ogun" bilgisini her dökümana mühürlüyoruz
             for t in tarifler:
                 t["ogun"] = ogun
                 t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
             
-            # Yeni üretilen taze tarifleri veritabanına arşivliyoruz
+            # Yeni tarifler üretildiğinde DB'ye kaydet (Buradaki fonsiyon KESİN LOG basacak)
             veritabanina_kaydet(tarifler)
             
             for t in tarifler:
@@ -157,9 +156,9 @@ def tarif_bul(istek: TarifIsteği):
 
         except Exception as e:
             if deneme < max_deneme - 1:
-                print(f"⚠️ API Geçici Pürüz Yaşadı (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor...")
+                print(f"⚠️ [SİSTEM] API Geçici Pürüz Yaşadı (Deneme {deneme + 1}/{max_deneme}). {bekleme_suresi} saniye sonra tekrar deneniyor...", flush=True)
                 time.sleep(bekleme_suresi)
                 bekleme_suresi += 3 
             else:
-                print(f"🚨 TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}")
+                print(f"🚨 [HATA] TÜM DENEMELER BAŞARISIZ OLDU: {str(e)}", flush=True)
                 raise HTTPException(status_code=500, detail=f"Google API Sınırı Aşıldı veya Bulunamadı: {str(e)}")

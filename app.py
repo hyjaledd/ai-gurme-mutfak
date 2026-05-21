@@ -11,7 +11,6 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Premium Altın/Bronz Degrade Buton */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #b8860b 100%);
         background-size: 200% auto;
@@ -32,7 +31,6 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(218, 165, 32, 0.4);
     }
 
-    /* Malzemeler İçin Şık Hap (Pill) Tasarımı */
     .ingredient-tag {
         display: inline-block;
         background-color: #1e2329;
@@ -45,7 +43,6 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* Özel Kalori ve Porsiyon Kartları */
     .premium-metric {
         background: linear-gradient(180deg, #161a22 0%, #11141a 100%);
         border-left: 3px solid #b8860b;
@@ -68,7 +65,6 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
 
-    /* BONUS TATLI İÇİN ÖZEL ALTIN ÇERÇEVELİ PANEL */
     .bonus-dessert-box {
         background: linear-gradient(135deg, #1f1911 0%, #14110c 100%);
         border: 2px solid #b8860b;
@@ -82,7 +78,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- BACKEND BAĞLANTI ADRESİ ---
-BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
+BACKEND_URL = "[https://ai-gurme-mutfak.onrender.com](https://ai-gurme-mutfak.onrender.com)"
 
 # --- LÜKS HEADER TASARIMI ---
 st.markdown("""
@@ -112,7 +108,6 @@ with st.container():
     with col_kalori:
         kalori_hedefi = st.selectbox("🔥 Kalori (Kişi Başı)", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
 
-    # Genişletilmiş Mutfak Envanteri (~100 Çeşit)
     populer_malzemeler = [
         "Süt", "Yoğurt", "Tereyağı", "Kaşar Peyniri", "Beyaz Peynir", "Tulum Peyniri", "Lor Peyniri", "Krem Peynir", "Kaymak", "Kefir",
         "Yumurta", "Dana Kıyma", "Kuşbaşı Et", "Tavuk Göğsü", "Tavuk But", "Sucuk", "Sosis", "Salam", "Pastırma", "Ton Balığı",
@@ -130,7 +125,7 @@ with st.container():
         if not malzemeler_listesi:
             st.error("🚨 Lütfen mutfak envanterinizden malzeme seçin!")
         else:
-            with st.spinner("🍳 Şefimiz size özel reçeteyi ve bonus tatlıyı hazırlıyor..."):
+            with st.spinner("🍳 Şefimiz size 3 özel reçete ve 1 bonus tatlı hazırlıyor..."):
                 payload = {"malzemeler": malzemeler_listesi, "ogun": ogun, "kisi_sayisi": int(kisi_sayisi), "kalori_hedefi": kalori_hedefi, "gosterilen_tarifler": st.session_state.gosterilen_tarifler}
                 try:
                     response = requests.post(f"{BACKEND_URL}/tarif-bul", json=payload, timeout=60)
@@ -145,7 +140,6 @@ st.write("---")
 
 # --- KATEGORİZE EDİLMİŞ ÖZEL REÇETE GÖSTERİMİ ---
 if st.session_state.mevcut_tarifler:
-    # Gelen paketi Ana Tarifler ve Bonus Tatlılar olarak ikiye bölüyoruz
     ana_tarifler = [t for t in st.session_state.mevcut_tarifler if not t.get("is_bonus", False)]
     bonus_tatlilar = [t for t in st.session_state.mevcut_tarifler if t.get("is_bonus", False)]
     
@@ -157,7 +151,11 @@ if st.session_state.mevcut_tarifler:
     for idx, tarif in enumerate(ana_tarifler):
         adımlar_ham = tarif.get("instructions", [])
         adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
-        sure_kat = "Hızlı Servis" if adım_sayisi <= 4 else "Standart Süre" if adım_sayisi <= 7 else "Gurme (30+ Dk)"
+        
+        # SÜRELER TAM İSTEDİĞİN GİBİ GÜNCELLENDİ
+        if adım_sayisi <= 4: sure_kat = "5-15 dk"
+        elif adım_sayisi <= 7: sure_kat = "15-30 dk"
+        else: sure_kat = "30+ dk"
         
         expander_label = f"🍽️ {tarif.get('title')}  |  ⏳ {sure_kat}"
         
@@ -188,9 +186,17 @@ if st.session_state.mevcut_tarifler:
         st.markdown("<h4 style='color: #ffd700; margin-top: 2rem; margin-bottom: 0.5rem;'>✨ Şefin İkramı (Bonus Reçete)</h4>", unsafe_allow_html=True)
         
         for tatli in bonus_tatlilar:
-            expander_tatli_label = f"🎁 {tatli.get('title')}  |  ✨ Gurme Kapanış Sürprizi"
+            t_adımlar = tatli.get("instructions", [])
+            t_adım_sayisi = len(t_adımlar) if isinstance(t_adımlar, (list, dict)) else 5
             
-            with st.expander(expander_tatli_label, expanded=True): # Tatlı kutusu heyecan yaratması için ilk açılışta açık gelir
+            # TATLI İÇİN DE SÜRELER EKLENDİ
+            if t_adım_sayisi <= 4: t_sure_kat = "5-15 dk"
+            elif t_adım_sayisi <= 7: t_sure_kat = "15-30 dk"
+            else: t_sure_kat = "30+ dk"
+
+            expander_tatli_label = f"🎁 {tatli.get('title')}  |  ⏳ {t_sure_kat} (Bonus Tatlı)"
+            
+            with st.expander(expander_tatli_label, expanded=True): 
                 st.markdown('<div class="bonus-dessert-box">', unsafe_allow_html=True)
                 
                 t_col1, t_col2 = st.columns(2)
@@ -207,7 +213,6 @@ if st.session_state.mevcut_tarifler:
                 st.markdown(f"<div style='margin-bottom: 2rem;'>{t_tags_html}</div>", unsafe_allow_html=True)
                 
                 st.markdown("<h5 style='color: #ffd700; margin-bottom: 1rem;'>👨‍🍳 Şefin Gizli Tatlı Yapılış Adımları</h5>", unsafe_allow_html=True)
-                t_adımlar = tatli.get("instructions", [])
                 if isinstance(t_adımlar, list):
                     for adim in t_adımlar: st.write(f"**•** {adim}")
                 elif isinstance(t_adımlar, dict):

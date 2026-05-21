@@ -2,16 +2,83 @@ import streamlit as st
 import requests
 
 # Sayfa yapılandırması
-st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🧑‍🍳", layout="wide")
+st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🥂", layout="wide")
+
+# --- ADVANCED PREMIUM CSS ENJEKSİYONU ---
+st.markdown("""
+    <style>
+    /* Ana Arka Plan ve Gizlemeler */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Premium Altın/Bronz Degrade Buton */
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #b8860b 100%);
+        background-size: 200% auto;
+        color: #1a1a1a !important;
+        border: none;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        padding: 0.6rem 0;
+        box-shadow: 0 4px 15px rgba(218, 165, 32, 0.25);
+        transition: 0.5s;
+    }
+    div.stButton > button:first-child:hover {
+        background-position: right center;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(218, 165, 32, 0.4);
+    }
+
+    /* Malzemeler İçin Şık Hap (Pill) Tasarımı */
+    .ingredient-tag {
+        display: inline-block;
+        background-color: #1e2329;
+        border: 1px solid #363c46;
+        color: #d1d5db;
+        padding: 6px 14px;
+        border-radius: 20px;
+        margin: 4px 6px 4px 0;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Özel Kalori ve Porsiyon Kartları */
+    .premium-metric {
+        background: linear-gradient(180deg, #161a22 0%, #11141a 100%);
+        border-left: 3px solid #b8860b;
+        padding: 1.2rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .metric-title {
+        color: #8b949e;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        margin-bottom: 0.4rem;
+    }
+    .metric-value {
+        color: #f0f2f6;
+        font-size: 1.6rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- BACKEND BAĞLANTI ADRESİ ---
 BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
 
-# --- MOBİL UYUMLU PREMIUM HEADER ---
+# --- LÜKS HEADER TASARIMI ---
 st.markdown("""
-    <div style="background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid #2d2d44;">
-        <h1 style="color: #ffffff; margin-bottom: 0.4rem; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; letter-spacing: -0.5px; text-align: center;">🧑‍🍳 AI Gourmet Kitchen</h1>
-        <p style="color: #8b8ba7; font-size: 0.95rem; margin-bottom: 0; text-align: center;">Kategori Bazlı Akıllı Reçete Sistemi</p>
+    <div style="background: linear-gradient(135deg, #11141a 0%, #1c212b 100%); padding: 2rem; border-radius: 12px; margin-bottom: 2.5rem; border: 1px solid #2d333f; border-bottom: 3px solid #b8860b; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h1 style="color: #f0f2f6; margin-bottom: 0.2rem; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 2.4rem; letter-spacing: -1px;">🥂 AI Gourmet Kitchen</h1>
+        <p style="color: #8b949e; font-size: 1rem; margin-bottom: 0; font-weight: 500; letter-spacing: 2px;">KİŞİSEL ŞEFİNİZ & DİYETİSYENİNİZ</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -23,7 +90,7 @@ if "mevcut_tarifler" not in st.session_state:
 
 # --- KONTROL PANELİ ---
 with st.container():
-    st.markdown("#### ⚙️ Menü Yapılandırma")
+    st.markdown("<h4 style='color: #e2e2e2; margin-bottom: 1rem;'>⚙️ Menü Konfigürasyonu</h4>", unsafe_allow_html=True)
     col_ogun, col_porsiyon, col_kalori = st.columns([1, 1, 1])
 
     with col_ogun:
@@ -37,12 +104,13 @@ with st.container():
 
     populer_malzemeler = ["Süt", "Beyaz Peynir", "Kaşar Peyniri", "Yumurta", "Tereyağı", "Zeytinyağı", "Un", "Tuz", "Karabiber", "Pul Biber", "Domates", "Biber", "Salça", "Kuru Soğan", "Sarımsak", "Patates", "Yoğurt", "Tavuk", "Kıyma"]
     malzemeler_listesi = st.multiselect("🛒 Envanteriniz", options=populer_malzemeler, default=[])
-
-    if st.button("✨ GURME REÇETELERİ OLUŞTUR", type="primary", use_container_width=True):
+    
+    st.write("") # Boşluk
+    if st.button("GURME REÇETELERİ OLUŞTUR", use_container_width=True):
         if not malzemeler_listesi:
-            st.error("🚨 Lütfen envanter seçin!")
+            st.error("🚨 Lütfen mutfak envanterinizden malzeme seçin!")
         else:
-            with st.spinner("🍳 Reçeteler hazırlanıyor..."):
+            with st.spinner("🍳 Şefimiz size özel reçeteyi hazırlıyor..."):
                 payload = {"malzemeler": malzemeler_listesi, "ogun": ogun, "kisi_sayisi": int(kisi_sayisi), "kalori_hedefi": kalori_hedefi, "gosterilen_tarifler": st.session_state.gosterilen_tarifler}
                 try:
                     response = requests.post(f"{BACKEND_URL}/tarif-bul", json=payload, timeout=60)
@@ -55,59 +123,74 @@ with st.container():
 
 st.write("---")
 
-# --- KATEGORİZE EDİLMİŞ VE TIKLANDIĞINDA AÇILAN TARİF YAPISI ---
+# --- KATEGORİZE EDİLMİŞ ÖZEL REÇETE GÖSTERİMİ ---
 if st.session_state.mevcut_tarifler:
-    st.markdown("### 📋 Hazırlanan Özel Reçete Listesi")
-    st.caption(f"💡 Her bir tarifin üzerine dokunarak **Kişi Başı Kalori**, **Malzemeler** ve **Adımları** görebilirsiniz.")
+    st.markdown("<h3 style='color: #b8860b; margin-bottom: 0.5rem;'>📋 Tadım Menüsü</h3>", unsafe_allow_html=True)
+    st.caption("Ayrıntılı mutfak protokolünü ve malzeme oranlarını görmek için reçetelerin üzerine dokunun.")
+    st.write("")
     
     for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
         adımlar_ham = tarif.get("instructions", [])
         adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
         
-        if   adım_sayisi <= 4: sure_kat = "5-15 Dk (Hızlı)"
-        elif adım_sayisi <= 7: sure_kat = "15-30 Dk (Standart)"
-        else:                  sure_kat = "30+ Dk (Gurme)"
+        if   adım_sayisi <= 4: sure_kat = "Hızlı Servis"
+        elif adım_sayisi <= 7: sure_kat = "Standart Süre"
+        else:                  sure_kat = "Gurme (30+ Dk)"
         
-        expander_label = f"🍽️ {tarif.get('title')} — [{sure_kat}]"
+        expander_label = f"🍽️ {tarif.get('title')}  |  ⏳ {sure_kat}"
         
         with st.expander(expander_label, expanded=False):
+            # 1. Özel Tasarım Metrik Kartları (Dev yazılar yerine şık kutular)
             m_col1, m_col2 = st.columns(2)
             with m_col1:
-                st.metric(label="🔥 Kalori (Kişi Başı)", value=tarif.get('calories', 'N/A'))
+                st.markdown(f"""
+                    <div class="premium-metric">
+                        <div class="metric-title">🔥 Enerji Değeri (Kişi Başı)</div>
+                        <div class="metric-value">{tarif.get('calories', 'N/A')}</div>
+                    </div>
+                """, unsafe_allow_html=True)
             with m_col2:
-                st.metric(label="👥 Hedef Porsiyon", value=f"{kisi_sayisi} Kişilik")
+                st.markdown(f"""
+                    <div class="premium-metric">
+                        <div class="metric-title">👥 Hedef Porsiyon</div>
+                        <div class="metric-value">{kisi_sayisi} Kişilik</div>
+                    </div>
+                """, unsafe_allow_html=True)
             
-            # --- MALZEME TİPİNİ AKILLICA TEMİZLEYEN GÜVENLİK KALKANI ---
-            st.markdown("##### 🛒 Gerekli Malzemeler")
+            # 2. Malzemeleri Mavi Kutudan Çıkarıp "Şık Etiketlere (Pill)" Çevirme
+            st.markdown("<h5 style='color: #e2e2e2; margin-top: 1rem; margin-bottom: 0.8rem;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
             malzemeler_ham = tarif.get("ingredients", [])
+            temiz_malzemeler = []
             
             if isinstance(malzemeler_ham, list):
-                # Liste içindeki elemanlar sözlük mü yoksa düz yazı mı kontrol et
-                temiz_malzemeler = []
                 for m in malzemeler_ham:
                     if isinstance(m, dict):
-                        # Eğer sözlükse isim ve miktar bilgisini birleştir (Örn: "Tavuk: 200g")
                         isim = m.get("name", m.get("item", str(m)))
                         miktar = m.get("amount", m.get("quantity", ""))
-                        temiz_malzemeler.append(f"{isim} ({miktar})" if miktar else isim)
+                        temiz_malzemeler.append(f"{isim} {miktar}" if miktar else isim)
                     else:
                         temiz_malzemeler.append(str(m))
-                st.info(", ".join(temiz_malzemeler))
             elif isinstance(malzemeler_ham, dict):
                 temiz_malzemeler = [f"{k}: {v}" for k, v in malzemeler_ham.items()]
-                st.info(", ".join(temiz_malzemeler))
             else:
-                st.info(str(malzemeler_ham))
+                temiz_malzemeler = [str(malzemeler_ham)]
             
-            # Hazırlanış Protokolü
-            st.markdown("##### 👨‍🍳 Hazırlanış Protokolü")
+            # Etiketleri HTML içine gömme
+            tags_html = "".join([f"<span class='ingredient-tag'>▪ {m}</span>" for m in temiz_malzemeler])
+            st.markdown(f"<div style='margin-bottom: 2rem;'>{tags_html}</div>", unsafe_allow_html=True)
+            
+            # 3. Hazırlanış Protokolü (Daha iyi satır arası boşlukları)
+            st.markdown("<h5 style='color: #e2e2e2; margin-bottom: 1rem;'>👨‍🍳 Hazırlanış Protokolü</h5>", unsafe_allow_html=True)
+            st.markdown("<div style='line-height: 1.8; color: #d1d5db;'>", unsafe_allow_html=True)
+            
             if isinstance(adımlar_ham, list):
                 for adim in adımlar_ham:
-                    st.write(f"• {adim}")
+                    st.write(f"**—** {adim}")
             elif isinstance(adımlar_ham, dict):
                 for k, v in adımlar_ham.items():
                     st.write(f"**{k}:** {v}")
             else:
                 st.write(str(adımlar_ham))
-            
-            st.markdown("<p style='text-align: right; color: #8b8ba7; font-size: 0.8rem;'>AI Gourmet Kitchen © 2026</p>", unsafe_allow_html=True)
+                
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<hr style='border-color: #2d333f; margin-top: 2rem;'><p style='text-align: center; color: #586069; font-size: 0.75rem; letter-spacing: 1px;'>AI GOURMET KITCHEN © 2026</p>", unsafe_allow_html=True)

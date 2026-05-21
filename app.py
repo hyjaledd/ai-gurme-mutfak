@@ -5,7 +5,7 @@ st.set_page_config(page_title="AI Gourmet Kitchen", layout="centered", page_icon
 
 st.markdown("""
 <style>
-    @import url('[https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap](https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap)');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #0e1117;
@@ -86,7 +86,7 @@ with c2:
 
 with c3:
     st.markdown("##### 🔥 Kalori Hedefi")
-    kalori_hedefi = st.selectbox("Calori", ["Fark Etmez", "300 kcal Altı", "300 - 500 kcal", "500+ kcal"], label_visibility="collapsed")
+    kalori_hedefi = st.selectbox("Kalori", ["Fark Etmez", "300 kcal Altı", "300 - 500 kcal", "500+ kcal"], label_visibility="collapsed")
 
 with st.expander("🛒 Dolabınızdaki Malzemeleri Yönetin", expanded=True):
     secilenler = st.multiselect("Malzemeleri seçin:", MALZEMELER, label_visibility="collapsed")
@@ -99,8 +99,11 @@ def menü_talep_et():
         "kalori_hedefi": kalori_hedefi,
         "gosterilen_tarifler": st.session_state.gosterilen_tarifler
     }
-    # BAĞLANTI KÖPRÜSÜ BURADA GÜNCELLENDİ (Render adresin)
-    response = requests.post("[https://ai-gurme-mutfak.onrender.com/tarif-bul)(https://ai-gurme-mutfak.onrender.com/tarif-bul)", json=payload)
+    
+    # --- BURASI KUSURSUZ HALE GETİRİLDİ (PARANTEZSİZ, DÜZ METİN ADRES) ---
+    URL = "https://ai-gurme-mutfak.onrender.com/tarif-bul"
+    response = requests.post(URL, json=payload)
+    
     if response.status_code == 200:
         st.session_state.aktif_menü = response.json()["tarifler"]
         for t in st.session_state.aktif_menü:
@@ -127,7 +130,6 @@ if st.session_state.aktif_menü:
         with tab:
             t = st.session_state.aktif_menü[index]
             
-            # Artık internet URL'si üzerinden resmi çekiyoruz, hata sıfırlandı!
             st.image(t.get("image_path"), use_container_width=True)
             
             st.markdown(f"""

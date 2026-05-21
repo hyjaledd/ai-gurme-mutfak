@@ -1,6 +1,24 @@
 import streamlit as st
 import requests
 
+# --- GÜVENLİ MALZEME OKUMA FONKSİYONU ---
+# Yapay zeka malzemeyi 'name', 'item' veya 'ingredient' olarak gönderse bile çökmeden yakalar
+def malzemeleri_temizle(malzemeler_ham):
+    temiz = []
+    if isinstance(malzemeler_ham, list):
+        for m in malzemeler_ham:
+            if isinstance(m, dict):
+                isim = m.get("name", m.get("item", m.get("ingredient", str(m))))
+                miktar = m.get("amount", m.get("quantity", m.get("measure", "")))
+                temiz.append(f"{isim} {miktar}".strip())
+            else:
+                temiz.append(str(m))
+    elif isinstance(malzemeler_ham, dict):
+        temiz = [f"{k}: {v}" for k, v in malzemeler_ham.items()]
+    else:
+        temiz = [str(malzemeler_ham)]
+    return temiz
+
 # Sayfa yapılandırması
 st.set_page_config(page_title="AI Gourmet Kitchen", page_icon="🍳", layout="wide")
 
@@ -78,7 +96,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- BACKEND BAĞLANTI ADRESİ ---
-# Hata yaratan kısımlar temizlendi, sadece saf URL bırakıldı:
 BACKEND_URL = "https://ai-gurme-mutfak.onrender.com"
 
 # --- LÜKS HEADER TASARIMI ---
@@ -131,7 +148,15 @@ with st.container():
                 try:
                     response = requests.post(f"{BACKEND_URL}/tarif-bul", json=payload, timeout=60)
                     if response.status_code == 200:
-                        st.session_state.mevcut_tarifler = response.json().get("tarifler", [])
+                        yeni_tarifler = response.json().get("tarifler", [])
+                        st.session_state.mevcut_tarifler = yeni_tarifler
+                        
+                        # --- YENİDEN ARATMA HAFIZASI GERİ GELDİ ---
+                        # Gösterilenleri hafızaya al ki bir sonraki basışta aynıları gelmesin
+                        for t in yeni_tarifler:
+                            title = t.get("title")
+                            if title and title not in st.session_state.gosterilen_tarifler:
+                                st.session_state.gosterilen_tarifler.append(title)
                     else:
                         st.error("Backend hatası oluştu.")
                 except Exception as e:
@@ -153,7 +178,6 @@ if st.session_state.mevcut_tarifler:
         adımlar_ham = tarif.get("instructions", [])
         adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
         
-        # SÜRELER TAM İSTEDİĞİN GİBİ GÜNCELLENDİ
         if adım_sayisi <= 4: sure_kat = "5-15 dk"
         elif adım_sayisi <= 7: sure_kat = "15-30 dk"
         else: sure_kat = "30+ dk"
@@ -168,8 +192,9 @@ if st.session_state.mevcut_tarifler:
                 st.markdown(f'<div class="premium-metric"><div class="metric-title">👥 Hedef Porsiyon</div><div class="metric-value">{kisi_sayisi} Kişilik</div></div>', unsafe_allow_html=True)
             
             st.markdown("<h5 style='color: #e2e2e2;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
-            malzemeler_ham = tarif.get("ingredients", [])
-            temiz_malzemeler = [f"{m.get('name', str(m))} {m.get('amount', '')}" if isinstance(m, dict) else str(m) for m in malzemeler_ham] if isinstance(malzemeler_ham, list) else [f"{k}: {v}" for k,v in malzemeler_ham.items()] if isinstance(malzemeler_ham, dict) else [str(malzemeler_ham)]
+            
+            # --- YENİ TEMİZLEME FONKSİYONU KULLANILIYOR ---
+            temiz_malzemeler = malzemeleri_temizle(tarif.get("ingredients", []))
             
             tags_html = "".join([f"<span class='ingredient-tag'>▪ {m}</span>" for m in temiz_malzemeler])
             st.markdown(f"<div style='margin-bottom: 2rem;'>{tags_html}</div>", unsafe_allow_html=True)
@@ -190,7 +215,6 @@ if st.session_state.mevcut_tarifler:
             t_adımlar = tatli.get("instructions", [])
             t_adım_sayisi = len(t_adımlar) if isinstance(t_adımlar, (list, dict)) else 5
             
-            # TATLI İÇİN DE SÜRELER EKLENDİ
             if t_adım_sayisi <= 4: t_sure_kat = "5-15 dk"
             elif t_adım_sayisi <= 7: t_sure_kat = "15-30 dk"
             else: t_sure_kat = "30+ dk"
@@ -207,8 +231,9 @@ if st.session_state.mevcut_tarifler:
                     st.markdown(f'<div class="premium-metric" style="border-left-color: #ffd700;"><div class="metric-title" style="color: #ffd700;">🥂 Sunum Protokolü</div><div class="metric-value">{kisi_sayisi} Kişilik İkram</div></div>', unsafe_allow_html=True)
                 
                 st.markdown("<h5 style='color: #ffd700;'>🛒 Tatlı İçin Gerekli Kiler Malzemeleri</h5>", unsafe_allow_html=True)
-                t_malzemeler_ham = tatli.get("ingredients", [])
-                t_temiz = [f"{m.get('name', str(m))} {m.get('amount', '')}" if isinstance(m, dict) else str(m) for m in t_malzemeler_ham] if isinstance(t_malzemeler_ham, list) else [f"{k}: {v}" for k,v in t_malzemeler_ham.items()] if isinstance(t_malzemeler_ham, dict) else [str(t_malzemeler_ham)]
+                
+                # --- YENİ TEMİZLEME FONKSİYONU KULLANILIYOR ---
+                t_temiz = malzemeleri_temizle(tatli.get("ingredients", []))
                 
                 t_tags_html = "".join([f"<span class='ingredient-tag' style='border-color: #b8860b; color: #ffd700;'>✨ {m}</span>" for m in t_temiz])
                 st.markdown(f"<div style='margin-bottom: 2rem;'>{t_tags_html}</div>", unsafe_allow_html=True)

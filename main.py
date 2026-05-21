@@ -1,17 +1,23 @@
 import os
 import json
+import re
 import urllib.parse
 import requests
 import hashlib
-import time
+import time  # Anti-spam gecikmesi için
 import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
-# --- API AYARLARI ---
-API_KEY = "AIzaSyB2lfVZxzXLwFD_Wr9NYJuRshcFXg1lmX8"
+# --- GÜVENLİ API AYARLARI ---
+# API Anahtarı artık kodun içine yazılmıyor, Render sunucusunun kasasından çekiliyor.
+API_KEY = os.environ.get("GEMINI_API_KEY")
+
+if not API_KEY:
+    raise ValueError("🚨 GEMINI_API_KEY bulunamadı! Lütfen sunucu çevre değişkenlerini (Environment Variables) kontrol edin.")
+
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
@@ -34,19 +40,24 @@ class TarifIsteği(BaseModel):
     kalori_hedefi: str
     gosterilen_tarifler: List[str]
 
+# --- AI RESSAM MOTORU (ANTI-SPAM & TÜRKÇE KARAKTER KORUMALI) ---
 def resim_indir_ve_kaydet(keyword: str, title: str):
     os.makedirs("assets/images", exist_ok=True)
     
+    # MD5 Hashing: Türkçe karakterli yemek isimlerini güvenli dosya adlarına çevirir (Örn: Kuşbaşı -> a1b2c3.jpg)
     isim_hash = hashlib.md5(title.encode('utf-8')).hexdigest()
     yerel_yol = f"assets/images/tarif_{isim_hash}.jpg"
     
+    # Aynı yemek resmi daha önce indirildiyse interneti boşuna yorma
     if os.path.exists(yerel_yol):
         return yerel_yol
         
     try:
+        # Yapay zekaya modern 2D vektörel illüstrasyon çizmesi için komut veriyoruz
         ai_prompt = urllib.parse.quote(f"beautiful colorful digital illustration of {keyword} food, 2d flat vector style, minimalist, appetizing, UI design asset")
         url = f"https://image.pollinations.ai/prompt/{ai_prompt}?width=800&height=500&nologo=true"
         
+        # Bizi bot sanıp engellemesinler diye sahte bir tarayıcı kimliği (User-Agent) gönderiyoruz
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
@@ -63,7 +74,7 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
             
     except Exception as e:
         print(f"⚠️ İllüstrasyon çizilemedi ({title}): {e}")
-        # --- ZARİF ACİL DURUM GÖRSELİ (Dark Moody Chef Kitchen) ---
+        # Acil Durum Planı: Çizim sunucusu çökerse siyah-altın temamıza uygun lüks bir mutfak görseli dön
         return "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
 
 def veritabanina_kaydet(yeni_tarifler):
@@ -95,7 +106,7 @@ def tarif_bul(istek: TarifIsteği):
     Porsiyon / Hedef Kitle: Tam olarak {istek.kisi_sayisi} Kişilik
     Müşterinin Kişi Başı Kalori Hedefi: {istek.kalori_hedefi}
     
-    ⚠️ KRİTİK KURAL: Müşteri şu yemekleri zaten gördü ve BEĞENMEDİ. Kesinlikle bu isimlerden farklı 3 yemek üretmelisin:
+    ⚠️ KRİTİK KURAL (KARA LİSTE): Müşteri şu yemekleri zaten gördü ve BEĞENMEDİ. Kesinlikle bu isimlerden farklı 3 yemek üretmelisin:
     [{yasakli_metin}]
 
     GÖREVİN:
@@ -153,6 +164,7 @@ def tarif_bul(istek: TarifIsteği):
             
         tarifler = json.loads(raw_text)
         
+        # Her bir tarif için resmi indirirken spam filtrelerine takılmamak adına araya 2 saniye uyku koyuyoruz
         for t in tarifler:
             anahtar_kelime = t.get("visual_keyword", "food")
             yemek_adi = t["title"]

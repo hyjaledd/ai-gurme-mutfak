@@ -36,7 +36,13 @@ with st.container():
         kalori_hedefi = st.selectbox("🔥 Kalori (Kişi Başı)", ["Fark Etmez", "Düşük Kalori (<300 kcal)", "Dengeli (300-600 kcal)", "Yüksek Enerji (>600 kcal)"])
 
     populer_malzemeler = ["Süt", "Beyaz Peynir", "Kaşar Peyniri", "Yumurta", "Tereyağı", "Zeytinyağı", "Un", "Tuz", "Karabiber", "Pul Biber", "Domates", "Biber", "Salça", "Kuru Soğan", "Sarımsak", "Patates", "Yoğurt", "Tavuk", "Kıyma"]
-    malzemeler_listesi = st.multiselect("🛒 Envanteriniz", options=populer_malzemeler, default=["Yumurta", "Domates", "Biber", "Kaşar Peyniri"])
+    
+    # --- CRITICAL FIX: DEFAULT BOŞ LİSTE OLARAK AYARLANDI ---
+    malzemeler_listesi = st.multiselect(
+        "🛒 Envanteriniz", 
+        options=populer_malzemeler, 
+        default=[] # Artık ilk açılışta hiçbir malzeme seçili gelmeyecek, tamamen boş olacak.
+    )
 
     if st.button("✨ GURME REÇETELERİ OLUŞTUR", type="primary", use_container_width=True):
         if not malzemeler_listesi:
@@ -61,7 +67,6 @@ if st.session_state.mevcut_tarifler:
     st.caption(f"💡 Her bir tarifin üzerine dokunarak **Kişi Başı Kalori**, **Malzemeler** ve **Adımları** görebilirsiniz.")
     
     for idx, tarif in enumerate(st.session_state.mevcut_tarifler):
-        # 1. Kategori ve Zaman Hesaplama
         adımlar_ham = tarif.get("instructions", [])
         adım_sayisi = len(adımlar_ham) if isinstance(adımlar_ham, (list, dict)) else 5
         
@@ -69,24 +74,18 @@ if st.session_state.mevcut_tarifler:
         elif adım_sayisi <= 7: sure_kat = "15-30 Dk (Standart)"
         else:                  sure_kat = "30+ Dk (Gurme)"
         
-        # 2. Expander Başlığı (Kategori ve Yemek Adı Bir Arada)
         expander_label = f"🍽️ {tarif.get('title')} — [{sure_kat}]"
         
-        # 3. ANA AÇILIR KUTU (Tüm detaylar bunun içinde)
         with st.expander(expander_label, expanded=False):
-            
-            # Üst Bilgi Kartları (Metrikler)
             m_col1, m_col2 = st.columns(2)
             with m_col1:
                 st.metric(label="🔥 Kalori (Kişi Başı)", value=tarif.get('calories', 'N/A'), help="Hesaplanan değer tek bir porsiyon için geçerli olan enerji miktarıdır.")
             with m_col2:
                 st.metric(label="👥 Hedef Porsiyon", value=f"{kisi_sayisi} Kişilik", help="Bu tarifteki malzeme miktarları seçtiğiniz kişi sayısına göre ölçeklendirilmiştir.")
             
-            # İçindekiler
             st.markdown("##### 🛒 Gerekli Malzemeler")
             st.info(", ".join(tarif.get("ingredients", [])))
             
-            # Hazırlanış
             st.markdown("##### 👨‍🍳 Hazırlanış Protokolü")
             if isinstance(adımlar_ham, list):
                 for adim in adımlar_ham:
@@ -97,7 +96,7 @@ if st.session_state.mevcut_tarifler:
             else:
                 st.write(str(adımlar_ham))
             
-            st.markdown("<p style='text-align: right; color: #8b8ba7; font-size: 0.8rem;'>AI Gourmet Kitchen © 2024</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: right; color: #8b8ba7; font-size: 0.8rem;'>AI Gourmet Kitchen © 2026</p>", unsafe_allow_html=True)
 
     st.write("")
     st.info("💡 Beğenmediğiniz tarifler varsa tekrar butonuna basarak yeni bir menü protokolü oluşturabilirsiniz.")

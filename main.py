@@ -47,22 +47,22 @@ app.add_middleware(
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
     ogun: str
-    kisi_sayisi: Optional[int] = 2          # Değer gelmezse veya hatalı gelirse varsayılan olarak 2 al
-    kalori_hedefi: Optional[str] = "Fark Etmez" # Eksik gelirse hata verme, Fark Etmez kabul et
-    gosterilen_tarifler: Optional[List[str]] = [] # Boş veya eksik gelirse boş liste tanımla
+    kisi_sayisi: Optional[int] = 2          
+    kalori_hedefi: Optional[str] = "Fark Etmez" 
+    gosterilen_tarifler: Optional[List[str]] = [] 
 
 def veritabanina_kaydet(yeni_tarifler):
     try:
         if yeni_tarifler:
+            # insert_many işlemi listenin orijinalini değiştirip içine ObjectId ekler
             tarif_koleksiyonu.insert_many(yeni_tarifler)
-            toplam_adet = tarif_koleksiyonu.count_documents({})
+            toplam_adet = static_count = tarif_koleksiyonu.count_documents({})
             print(f"📈 Bulut Veritabanı Güncellendi! Toplam Tarif Sayısı: {toplam_adet}")
     except Exception as e:
         print(f"⚠️ Veritabanı kayıt hatası: {e}")
 
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
-    # Veriler null veya eksik gelirse çökme yaşanmaması için fonksiyon içi ekstra koruma kalkanı
     malzemeler = istek.malzemeler if istek.malzemeler else []
     ogun = istek.ogun if istek.ogun else "Kahvaltı"
     kisi_sayisi = istek.kisi_sayisi if istek.kisi_sayisi else 2
@@ -98,11 +98,19 @@ def tarif_bul(istek: TarifIsteği):
         raw_text = response.text
         tarifler = json.loads(raw_text)
         
-        # Streamlit arayüzünde tasarımın kırılmaması için sabit bir arka plan iştah açıcı görsel linki ekliyoruz
         for t in tarifler:
             t["image_path"] = "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
         
+        # 1. Veritabanına kaydet (Bu aşamada tariflerin içine MongoDB _id ekleyecek)
         veritabanina_kaydet(tarifler)
+        
+        # --- CRITICAL FIX: OBJECTID FORMATINI SAF JSON'A UYGUN HALE GETİR ---
+        # Her bir tarifin içindeki _id alanını string yazı formatına çeviriyoruz ki FastAPI patlamasın.
+        for t in tarifler:
+            if "_id" in t:
+                t["_id"] = str(t["_id"])
+        
+        # 2. Şimdi tamamen güvenli bir şekilde Streamlit'e gönder
         return {"tarifler": tarifler}
 
     except Exception as e:

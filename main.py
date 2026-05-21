@@ -8,17 +8,29 @@ import time
 import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles # YENİ: Resimleri dışarı açmak için
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
+from pymongo import MongoClient # YENİ: MongoDB Bağlantı kütüphanesi
 
-# --- API AYARLARI ---
+# --- GÜVENLİ BULUT AYARLARI (RENDER KASASINDAN ÇEKİLİYOR) ---
 API_KEY = os.environ.get("GEMINI_API_KEY")
+MONGO_URI = os.environ.get("MONGO_URI")
+
 if not API_KEY:
     raise ValueError("🚨 GEMINI_API_KEY bulunamadı!")
+if not MONGO_URI:
+    raise ValueError("🚨 MONGO_URI bulunamadı! Lütfen Render Environment ayarlarına ekleyin.")
 
+# --- YAPAY ZEKA YAPILANDIRMASI ---
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
+
+# --- BULUT VERİTABANI BAĞLANTI KÖPRÜSÜ ---
+# Bu satır, Render ile Almanya'daki MongoDB Atlas arasında 7/24 açık bir tünel kurar.
+client = MongoClient(MONGO_URI)
+db = client["gurme_mutfak_db"]          # Veritabanı adı
+tarif_koleksiyonu = db["tarifler"]     # Tablo (Koleksiyon) adı
 
 app = FastAPI()
 
@@ -30,8 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DOSYA_ADI = "pro_tarif_veritabani.json"
-RENDER_URL = "https://ai-gurme-mutfak.onrender.com" # Senin gerçek Render adresin
+RENDER_URL = "https://ai-gurme-mutfak.onrender.com"
 
 class TarifIsteği(BaseModel):
     malzemeler: List[str]
@@ -47,8 +58,6 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
     isim_hash = hashlib.md5(title.encode('utf-8')).hexdigest()
     dosya_adi = f"tarif_{isim_hash}.jpg"
     yerel_yol = f"assets/images/{dosya_adi}"
-    
-    # Ön yüzün internet üzerinden erişeceği tam URL adresi
     web_url = f"{RENDER_URL}/static/{dosya_adi}"
     
     if os.path.exists(yerel_yol):
@@ -63,7 +72,6 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
         }
         
         response = requests.get(url, headers=headers, timeout=25)
-        
         if response.status_code == 200:
             with open(yerel_yol, 'wb') as f:
                 f.write(response.content)
@@ -76,20 +84,17 @@ def resim_indir_ve_kaydet(keyword: str, title: str):
         print(f"⚠️ İllüstrasyon çizilemedi ({title}): {e}")
         return "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800&auto=format&fit=crop"
 
+# --- OTONOM BULUT VERİTABANI GÜNCELLEME FONKSİYONU ---
 def veritabanina_kaydet(yeni_tarifler):
-    mevcut_veriler = []
-    if os.path.exists(DOSYA_ADI):
-        try:
-            with open(DOSYA_ADI, "r", encoding="utf-8") as f:
-                icerik = f.read().strip()
-                if icerik:
-                    mevcut_veriler = json.loads(icerik)
-        except Exception:
-            pass
-
-    mevcut_veriler.extend(yeni_tarifler)
-    with open(DOSYA_ADI, "w", encoding="utf-8") as f:
-        json.dump(mevcut_veriler, f, ensure_ascii=False, indent=2)
+    try:
+        # Eski JSON dosyası mantığı tamamen silindi.
+        # Yeni tarifleri tek hamlede buluttaki MongoDB Atlas kasamıza fırlatıyoruz.
+        if yeni_tarifler:
+            tarif_koleksiyonu.insert_many(yeni_tarifler)
+            toplam_adet = tarif_koleksiyonu.count_documents({})
+            print(f"📈 Bulut Veritabanı Güncellendi! Toplam Ölümsüz Tarif Sayısı: {toplam_adet}")
+    except Exception as e:
+        print(f"⚠️ Veritabanına kaydedilirken hata oluştu: {e}")
 
 @app.post("/tarif-bul")
 def tarif_bul(istek: TarifIsteği):
@@ -134,6 +139,4 @@ def tarif_bul(istek: TarifIsteği):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- YENİ: ASSETS KLASÖRÜNÜ İNTERNETE AÇAN STATIK KÖPRÜ ---
-# Bu satır sayesinde assets/images klasöründeki her resim internetten bir linkle okunabilir hale gelir.
 app.mount("/static", StaticFiles(directory="assets/images"), name="static")

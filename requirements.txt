@@ -4,3 +4,4 @@ pydantic
 google-generativeai
 requests
 streamlit
+pymongo

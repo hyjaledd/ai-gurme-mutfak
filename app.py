@@ -1,13 +1,11 @@
 import streamlit as st
 import requests
 
-# --- PREMIUM SAYFA AYARLARI ---
 st.set_page_config(page_title="AI Gourmet Kitchen", layout="centered", page_icon="👨‍🍳")
 
-# --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    @import url('[https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap](https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap)');
     
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #0e1117;
@@ -17,16 +15,13 @@ st.markdown("""
 
     h1, h2, h3 { color: #FFBF00 !important; font-weight: 600 !important; }
 
-    /* --- YENİ: SEÇİLİ MALZEME ETİKETLERİNİ ALTIN SARISI YAPMA --- */
     span[data-baseweb="tag"] {
         background-color: #FFBF00 !important;
         color: #000000 !important;
         border-radius: 6px !important;
         font-weight: 600 !important;
     }
-    span[data-baseweb="tag"] span {
-        color: #000000 !important; /* Kapatma X işareti için */
-    }
+    span[data-baseweb="tag"] span { color: #000000 !important; }
 
     .recipe-card {
         background-color: #161b22;
@@ -52,19 +47,9 @@ st.markdown("""
         transform: scale(1.02);
         box-shadow: 0 0 20px rgba(255, 191, 0, 0.4);
     }
-    
-    .recipe-img {
-        width: 100%;
-        height: 300px;
-        object-fit: cover;
-        border-radius: 20px 20px 0 0;
-        border: 1px solid #30363d;
-        border-bottom: none;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- UYGULAMA HAFIZASI (SESSION STATE) ---
 if "aktif_menü" not in st.session_state:
     st.session_state.aktif_menü = None
 if "gosterilen_tarifler" not in st.session_state:
@@ -101,9 +86,8 @@ with c2:
 
 with c3:
     st.markdown("##### 🔥 Kalori Hedefi")
-    kalori_hedefi = st.selectbox("Kalori", ["Fark Etmez", "300 kcal Altı", "300 - 500 kcal", "500+ kcal"], label_visibility="collapsed")
+    kalori_hedefi = st.selectbox("Calori", ["Fark Etmez", "300 kcal Altı", "300 - 500 kcal", "500+ kcal"], label_visibility="collapsed")
 
-# --- YENİ: AÇILIR-KAPANIR KUTU (EXPANDER) ---
 with st.expander("🛒 Dolabınızdaki Malzemeleri Yönetin", expanded=True):
     secilenler = st.multiselect("Malzemeleri seçin:", MALZEMELER, label_visibility="collapsed")
 
@@ -115,16 +99,16 @@ def menü_talep_et():
         "kalori_hedefi": kalori_hedefi,
         "gosterilen_tarifler": st.session_state.gosterilen_tarifler
     }
-    response = requests.post("https://ai-gurme-mutfak.onrender.com/tarif-bul", json=payload)
+    # BAĞLANTI KÖPRÜSÜ BURADA GÜNCELLENDİ (Render adresin)
+    response = requests.post("[https://ai-gurme-mutfak.onrender.com/tarif-bul](https://ai-gurme-mutfak.onrender.com/tarif-bul)", json=payload)
     if response.status_code == 200:
         st.session_state.aktif_menü = response.json()["tarifler"]
         for t in st.session_state.aktif_menü:
             if t["title"] not in st.session_state.gosterilen_tarifler:
                 st.session_state.gosterilen_tarifler.append(t["title"])
     else:
-        st.error("AI Şef şu an meşgul. Terminali kontrol edin.")
+        st.error("AI Şef şu an meşgul. Sunucu uyanıyor olabilir, lütfen 10 saniye sonra tekrar deneyin.")
 
-# --- ANA BUTON ---
 if st.button("✨ GURME MENÜMÜ HAZIRLA", use_container_width=True):
     if len(secilenler) >= 2:
         st.session_state.gosterilen_tarifler = [] 
@@ -133,7 +117,6 @@ if st.button("✨ GURME MENÜMÜ HAZIRLA", use_container_width=True):
     else:
         st.warning("En az 2 malzeme seçerek şefimize yardımcı olun.")
 
-# --- MENÜ GÖSTERİM ALANI ---
 if st.session_state.aktif_menü:
     st.markdown("### 📋 Bugünün Gurme Menüsü")
     
@@ -144,6 +127,7 @@ if st.session_state.aktif_menü:
         with tab:
             t = st.session_state.aktif_menü[index]
             
+            # Artık internet URL'si üzerinden resmi çekiyoruz, hata sıfırlandı!
             st.image(t.get("image_path"), use_container_width=True)
             
             st.markdown(f"""

@@ -151,7 +151,6 @@ with st.container():
                         yeni_tarifler = response.json().get("tarifler", [])
                         st.session_state.mevcut_tarifler = yeni_tarifler
                         
-                        # --- YENİDEN ARATMA HAFIZASI GERİ GELDİ ---
                         # Gösterilenleri hafızaya al ki bir sonraki basışta aynıları gelmesin
                         for t in yeni_tarifler:
                             title = t.get("title")
@@ -193,7 +192,6 @@ if st.session_state.mevcut_tarifler:
             
             st.markdown("<h5 style='color: #e2e2e2;'>🛒 Gerekli Malzemeler</h5>", unsafe_allow_html=True)
             
-            # --- YENİ TEMİZLEME FONKSİYONU KULLANILIYOR ---
             temiz_malzemeler = malzemeleri_temizle(tarif.get("ingredients", []))
             
             tags_html = "".join([f"<span class='ingredient-tag'>▪ {m}</span>" for m in temiz_malzemeler])
@@ -221,7 +219,8 @@ if st.session_state.mevcut_tarifler:
 
             expander_tatli_label = f"🎁 {tatli.get('title')}  |  ⏳ {t_sure_kat} (Bonus Tatlı)"
             
-            with st.expander(expander_tatli_label, expanded=True): 
+            # Kapalı gelmesi için expanded=False yapıldı
+            with st.expander(expander_tatli_label, expanded=False): 
                 st.markdown('<div class="bonus-dessert-box">', unsafe_allow_html=True)
                 
                 t_col1, t_col2 = st.columns(2)
@@ -232,7 +231,6 @@ if st.session_state.mevcut_tarifler:
                 
                 st.markdown("<h5 style='color: #ffd700;'>🛒 Tatlı İçin Gerekli Kiler Malzemeleri</h5>", unsafe_allow_html=True)
                 
-                # --- YENİ TEMİZLEME FONKSİYONU KULLANILIYOR ---
                 t_temiz = malzemeleri_temizle(tatli.get("ingredients", []))
                 
                 t_tags_html = "".join([f"<span class='ingredient-tag' style='border-color: #b8860b; color: #ffd700;'>✨ {m}</span>" for m in t_temiz])
